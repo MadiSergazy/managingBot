@@ -76,15 +76,15 @@ func StartForceMajeureNotifications(dbConnection db.Database, bot *tgbotapi.BotA
 			select {
 			case <-ticker.C:
 				// Perform the check for unfinished force majeure reports
-				/*	err := handlers.CheckUnfinished(dbConnection, bot, "force_majeure")
-					if err != nil {
-						log.Println("Error checking unfinished force majeure reports:", err)
-					}
-					err = handlers.CheckUnfinished(dbConnection, bot, "change_requests")
-					if err != nil {
-						log.Println("Error checking unfinished change reports:", err)
-					}*/
-				err := handlers.CheckOverdueTasks(dbConnection, bot)
+				err := handlers.CheckUnfinished(dbConnection, bot, "force_majeure")
+				if err != nil {
+					log.Println("Error checking unfinished force majeure reports:", err)
+				}
+				err = handlers.CheckUnfinished(dbConnection, bot, "change_requests")
+				if err != nil {
+					log.Println("Error checking unfinished change reports:", err)
+				}
+				err = handlers.CheckOverdueTasks(dbConnection, bot)
 				if err != nil {
 					log.Println("Error checking CheckOverdueTasks:", err)
 				}
