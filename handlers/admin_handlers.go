@@ -27,7 +27,12 @@ func HandleAdminCommand(bot *tgbotapi.BotAPI, message *tgbotapi.Message, updateB
 		// commandArg :=
 	} else if strings.HasPrefix(message.Text, "/completeforcemajor") {
 		command = "completeforcemajor"
+	} else if strings.HasPrefix(message.Text, "/completechangerequest") {
+		command = "completechangerequest"
+	} else if strings.HasPrefix(message.Text, "/CompleteOverdueTaskByAdmin") {
+		command = "completeoverduetaskbyadmin"
 	}
+
 	switch command {
 	case "createproject":
 		//msg.ReplyMarkup = tgbotapi.ReplyKeyboardRemove{RemoveKeyboard: true}
@@ -41,7 +46,11 @@ func HandleAdminCommand(bot *tgbotapi.BotAPI, message *tgbotapi.Message, updateB
 	case "seeproject":
 		handleProjectByID(bot, message, dbConnection, updates)
 	case "completeforcemajor":
-		handlerCompleteForceMajor(bot, message, dbConnection, updates)
+		handlerCompleteForceMajorOrChangereques(bot, message, dbConnection, updates, "completeforcemajor")
+	case "completechangerequest":
+		handlerCompleteForceMajorOrChangereques(bot, message, dbConnection, updates, "completechangerequest")
+	case "completeoverduetaskbyadmin":
+		handlerCompleteOverdueTaskByAdmin(bot, message, dbConnection, updates)
 	default:
 		replyMarkup := tgbotapi.NewReplyKeyboard(
 			tgbotapi.NewKeyboardButtonRow(
@@ -678,10 +687,17 @@ func getProjectByID(dbConnection db.Database, projectID int) ([]models.TaskInfo,
 	return taskInfoList, nil
 }
 
-func handlerCompleteForceMajor(bot *tgbotapi.BotAPI, message *tgbotapi.Message, dbConnection db.Database, updates tgbotapi.UpdatesChannel) {
+func handlerCompleteForceMajorOrChangereques(bot *tgbotapi.BotAPI, message *tgbotapi.Message, dbConnection db.Database, updates tgbotapi.UpdatesChannel, issueName string) {
 	fmt.Println("Inside handlerCompleteForceMajor")
 	// Extract the task ID from the command
-	command := strings.TrimPrefix(message.Text, "/completeforcemajor")
+	var command string
+	switch issueName {
+	case "completeforcemajor":
+		command = strings.TrimPrefix(message.Text, "/completeforcemajor")
+	case "completechangerequest":
+		command = strings.TrimPrefix(message.Text, "/completechangerequest")
+	}
+
 	force_majeureID, err := strconv.Atoi(command)
 	fmt.Println("forcemajor: ", force_majeureID)
 
@@ -702,8 +718,17 @@ func handlerCompleteForceMajor(bot *tgbotapi.BotAPI, message *tgbotapi.Message, 
 		bot.Send(msg)
 		return
 	}
+	var response string
+	switch issueName {
+	case "completeforcemajor":
+		response = "forcemajor marked as completed successfully."
+		err = dbConnection.Execute("UPDATE force_majeure SET is_done = true, description_of_what_done = ? WHERE id = ?", descriptionOfWhatDid, force_majeureID)
 
-	err = dbConnection.Execute("UPDATE force_majeure SET is_done = true, description_of_what_done = ? WHERE id = ?", descriptionOfWhatDid, force_majeureID)
+	case "completechangerequest":
+		response = "changerequest marked as completed successfully."
+		err = dbConnection.Execute("UPDATE change_requests SET is_done = true, description_of_what_done = ? WHERE id = ?", descriptionOfWhatDid, force_majeureID)
+
+	}
 
 	if err != nil {
 		log.Println("Error marking forcemajor as completed:", err)
@@ -713,7 +738,72 @@ func handlerCompleteForceMajor(bot *tgbotapi.BotAPI, message *tgbotapi.Message, 
 		return
 	}
 
-	response := "forcemajor marked as completed successfully."
 	msg = tgbotapi.NewMessage(message.Chat.ID, response)
 	bot.Send(msg)
+}
+
+func handlerCompleteOverdueTaskByAdmin(bot *tgbotapi.BotAPI, message *tgbotapi.Message, dbConnection db.Database, updates tgbotapi.UpdatesChannel) {
+	command := strings.TrimPrefix(message.Text, "/CompleteOverdueTaskByAdmin")
+
+	overdueTaskID, err := strconv.Atoi(command)
+	fmt.Println("overdueTasID: ", overdueTaskID)
+
+	if err != nil {
+		log.Println("Invalid overdueTasID:", err)
+		response := "Invalid overdueTasID. Please try again."
+		msg := tgbotapi.NewMessage(message.Chat.ID, response)
+		bot.Send(msg)
+		return
+	}
+
+	msg := tgbotapi.NewMessage(message.Chat.ID, "What did you do for solving this problem:")
+	bot.Send(msg)
+	descriptionOfWhatDid, err := collectUserInput(bot, message.Chat.ID, updates, "description", dbConnection)
+	if err != nil {
+		log.Println("Error collecting user input:", err)
+		msg := tgbotapi.NewMessage(message.Chat.ID, "Wrong data format")
+		bot.Send(msg)
+		return
+	}
+
+	// Mark the overdue task as done by the admin
+	err = MarkOverdueTaskDoneByAdmin(dbConnection, descriptionOfWhatDid, overdueTaskID)
+	if err != nil {
+		log.Println("Error marking overdue task as done by admin:", err)
+		// Handle the error
+		return
+	}
+
+	// Send a confirmation message to the admin
+	response := fmt.Sprintf("Overdue task with ID %d has been marked as done by the admin.", overdueTaskID)
+	msg = tgbotapi.NewMessage(message.Chat.ID, response)
+	bot.Send(msg)
+
+}
+
+func MarkOverdueTaskDoneByAdmin(dbConnection db.Database, descriptionOfWhatDid string, overdueTaskID int) error {
+	query := "UPDATE overdue_task SET is_done_by_admin = true, description_by_admin = ? WHERE id = ?"
+	err := dbConnection.Execute(query, descriptionOfWhatDid, overdueTaskID)
+	if err != nil {
+		return err
+	}
+
+	query = `SELECT task_id FROM overdue_task WHERE id = ?`
+	row := dbConnection.QueryRow(query, overdueTaskID)
+	if err != nil {
+		return err
+	}
+	var id int
+	err = row.Scan(&id)
+	if err != nil {
+		return err
+	}
+
+	query = "UPDATE tasks SET isDone = true WHERE id = ?"
+	err = dbConnection.Execute(query, id)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

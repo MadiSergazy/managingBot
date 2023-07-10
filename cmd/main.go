@@ -2,8 +2,11 @@ package main
 
 import (
 	"fmt"
+
+	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
 	log "github.com/sirupsen/logrus"
-	"madi_telegram_bot/bot"
+
+	telegram "madi_telegram_bot/bot"
 	"madi_telegram_bot/config"
 	"madi_telegram_bot/db"
 )
@@ -23,11 +26,16 @@ func main() {
 		log.Error("error getting connect to db: ", err)
 	}
 
-	// Rest of your code...
+	bot, err := tgbotapi.NewBotAPI(cfg.BotToken)
+	if err != nil {
+		log.Panic(err)
+	}
 
-	err = bot.StartBot(cfg, *dbConn)
+	telegramBot := telegram.NewBot(bot)
+
+	err = telegramBot.StartBot(cfg, *dbConn)
 	if err != nil {
 		log.Error("Error when starting tbot: ", err)
 	}
-	log.Info("Running bot with username: %s\n", "https://t.me/lift_kz_bot")
+	log.Printf("Running bot with username: %s\n", "https://t.me/lift_kz_bot")
 }

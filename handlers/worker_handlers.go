@@ -24,7 +24,10 @@ func HandleWorkerCommand(bot *tgbotapi.BotAPI, message *tgbotapi.Message, update
 		// commandArg :=
 	} else if strings.HasPrefix(message.Text, "/forcemajeure") {
 		command = "forcemajeure"
+	} else if strings.HasPrefix(message.Text, "/changerequest") { //todo in output
+		command = "changerequest"
 	}
+
 	switch command {
 	case "seetodaytasks":
 		employeeUsername := message.From.UserName
@@ -35,7 +38,9 @@ func HandleWorkerCommand(bot *tgbotapi.BotAPI, message *tgbotapi.Message, update
 	case "completetask":
 		handleCompleteTask(bot, message, dbConnection)
 	case "forcemajeure":
-		handleForceMajeure(bot, message, dbConnection, updates)
+		handleForceMajeureOrChangeRequest(bot, message, dbConnection, updates, "forcemajeure")
+	case "changerequest":
+		handleForceMajeureOrChangeRequest(bot, message, dbConnection, updates, "changerequest")
 	case "returnToMenu":
 		returnToMenu(bot, msg)
 	default:
@@ -112,6 +117,7 @@ func handleTodaysTasks(bot *tgbotapi.BotAPI, message *tgbotapi.Message, dbConnec
 		}
 
 		taskInfoMessage += fmt.Sprintf("Report Force Majeure: /forcemajeure%d\n", task.ID) // Add button for reporting force majeure
+		taskInfoMessage += fmt.Sprintf("Change Request: /changerequest%d\n", task.ID)      // Add button for reporting
 		taskInfoMessage += "\n"
 
 	}
@@ -222,8 +228,18 @@ func returnToMenu(bot *tgbotapi.BotAPI, msg tgbotapi.MessageConfig) {
 	bot.Send(msg)
 }
 
-func handleForceMajeure(bot *tgbotapi.BotAPI, message *tgbotapi.Message, dbConnection db.Database, updates tgbotapi.UpdatesChannel) {
-	command := strings.TrimPrefix(message.Text, "/forcemajeure")
+func handleForceMajeureOrChangeRequest(bot *tgbotapi.BotAPI, message *tgbotapi.Message, dbConnection db.Database, updates tgbotapi.UpdatesChannel, issueName string) {
+
+	var command, respond string
+	switch issueName {
+	case "forcemajeure":
+		command = strings.TrimPrefix(message.Text, "/forcemajeure")
+		respond = "Please provide the details of the force majeure situation:"
+	case "changerequest":
+		command = strings.TrimPrefix(message.Text, "/changerequest")
+		respond = "Please provide the details of the change request:"
+	}
+
 	taskID, err := strconv.Atoi(command)
 	fmt.Println("TAskID: ", taskID)
 
@@ -238,7 +254,7 @@ func handleForceMajeure(bot *tgbotapi.BotAPI, message *tgbotapi.Message, dbConne
 	}
 
 	// Prompt the employee to enter the force majeure details
-	msg := tgbotapi.NewMessage(message.Chat.ID, "Please provide the details of the force majeure situation:")
+	msg := tgbotapi.NewMessage(message.Chat.ID, respond)
 	bot.Send(msg)
 
 	// Collect the force majeure details from the user
@@ -254,7 +270,7 @@ func handleForceMajeure(bot *tgbotapi.BotAPI, message *tgbotapi.Message, dbConne
 	forceMajeureNotification := fmt.Sprintf("Force Majeure Report:\n\nResident: %s\nLift: %s\nEmployee Phone: %s\nStart Date: %s\n\nDetails:\n%s",
 		taskInfo.ResidentialComplex, taskInfo.ElevatorName, taskInfo.EmployeePhoneNumber, taskInfo.StartDate, forceMajeureDetails)
 
-	ok, err := checkForceMajor(dbConnection, taskID)
+	ok, err := checkForceMajorOrChangeRequest(dbConnection, taskID, issueName)
 	if err != nil {
 		log.Println("Error checking checkForceMajor:", err)
 		msg := tgbotapi.NewMessage(message.Chat.ID, "We had some issues, please try again later")
@@ -262,10 +278,10 @@ func handleForceMajeure(bot *tgbotapi.BotAPI, message *tgbotapi.Message, dbConne
 		return
 	}
 	// Save the force majeure report to the database
-	lastInsertID, err := SaveForceMajeureReport(dbConnection, taskID, taskInfo.ResidentialComplex, taskInfo.ElevatorName, taskInfo.EmployeePhoneNumber, forceMajeureDetails, message.From.ID)
+	lastInsertID, err := SaveForceMajeureReportOrChangeRequest(dbConnection, taskID, taskInfo.ResidentialComplex, taskInfo.ElevatorName, taskInfo.EmployeePhoneNumber, forceMajeureDetails, message.From.ID, issueName)
 	if err != nil {
-		log.Println("Error saving force majeure report:", err)
-		response := "Failed to save force majeure report. Please try again later."
+		log.Println("Error saving force majeure report OrChangeRequest:", err)
+		response := "Failed to save force majeure report OrChangeRequest. Please try again later."
 		msg := tgbotapi.NewMessage(message.Chat.ID, response)
 		bot.Send(msg)
 		return
@@ -284,10 +300,18 @@ func handleForceMajeure(bot *tgbotapi.BotAPI, message *tgbotapi.Message, dbConne
 		}
 
 		// send notification for admins
-		sendForceMajeureNotifications(bot, adminChatID, fmt.Sprintf(forceMajeureNotification+"\n/completeforcemajor%d", lastInsertID))
+		var response string
+		switch issueName {
+		case "forcemajeure":
+			sendForceMajeureNotifications(bot, adminChatID, fmt.Sprintf(forceMajeureNotification+"\n/completeforcemajor%d", lastInsertID))
+			response = "Force majeure report submitted successfully. The admin will be notified."
+		case "changerequest":
+			//todo fo  /completechangerequest
+			sendForceMajeureNotifications(bot, adminChatID, fmt.Sprintf(forceMajeureNotification+"\n/completechangerequest%d", lastInsertID))
+			response = "Change request report submitted successfully. The admin will be notified."
+		}
 
 		// Notify the employee about the successful report submission
-		response := "Force majeure report submitted successfully. The admin will be notified."
 		msg = tgbotapi.NewMessage(message.Chat.ID, response)
 		bot.Send(msg)
 
@@ -303,7 +327,13 @@ func handleForceMajeure(bot *tgbotapi.BotAPI, message *tgbotapi.Message, dbConne
 		response := "your request  will pass to hr_manager's"
 		msg = tgbotapi.NewMessage(message.Chat.ID, response)
 		bot.Send(msg)
-		sendForceMajeureNotifications(bot, HrChatID, fmt.Sprintf(forceMajeureNotification+"\n/completeforcemajor%d", lastInsertID))
+
+		switch issueName {
+		case "forcemajeure":
+			sendForceMajeureNotifications(bot, HrChatID, fmt.Sprintf(forceMajeureNotification+"\n/completeforcemajor%d", lastInsertID))
+		case "changerequest":
+			sendForceMajeureNotifications(bot, HrChatID, fmt.Sprintf(forceMajeureNotification+"\n/completechangerequest%d", lastInsertID))
+		}
 
 	}
 
@@ -339,11 +369,20 @@ func GetTaskByID(dbConnection db.Database, taskID int) (models.TaskInfo, error) 
 	return taskInfo, nil
 }
 
-func SaveForceMajeureReport(dbConnection db.Database, taskID int, nameResident, nameLift, employeePhoneNumber, details string, identifier int) (int, error) {
-	query := `
+func SaveForceMajeureReportOrChangeRequest(dbConnection db.Database, taskID int, nameResident, nameLift, employeePhoneNumber, details string, identifier int, issueName string) (int, error) {
+	var query string
+	switch issueName {
+	case "forcemajeure":
+		query = `
 		INSERT INTO force_majeure (task_id, residential_complex, elevator_name, employee_phone_number, description, employee_identifier)
 		VALUES (?, ?, ?, ?, ?, ?);
 	`
+	case "changerequest":
+		query = `
+		INSERT INTO change_requests (task_id, residential_complex, elevator_name, employee_phone_number, description, employee_identifier)
+		VALUES (?, ?, ?, ?, ?, ?);
+	`
+	}
 
 	lastInsertID, err := dbConnection.ExecuteWithLastInsertID(query, taskID, nameResident, nameLift, employeePhoneNumber, details, identifier)
 	if err != nil {
@@ -398,18 +437,26 @@ func sendForceMajeureNotifications(bot *tgbotapi.BotAPI, chatIDs []int64, forceM
 	wg.Wait()
 }
 
-func checkForceMajor(dbConnection db.Database, taskID int) (bool, error) {
-	query := "SELECT COUNT(*) FROM force_majeure WHERE task_id = ?"
+func checkForceMajorOrChangeRequest(dbConnection db.Database, taskID int, issueName string) (bool, error) {
+	var query string
+	switch issueName {
+	case "forcemajeure":
+		query = "SELECT COUNT(*) FROM force_majeure WHERE task_id = ?"
+	case "changerequest":
+		query = "SELECT COUNT(*) FROM change_requests WHERE task_id = ?"
+
+	}
+
 	row := dbConnection.QueryRow(query, taskID)
 	if row.Err() != nil {
-		log.Println("Error executing query in checkForceMajor:", row.Err())
+		log.Println("Error executing query in checkForceMajorOrChangeRequest:", row.Err())
 		return false, row.Err()
 	}
 
 	var count int
 
 	if err := row.Scan(&count); err != nil {
-		log.Println("Error scanning row:", err)
+		log.Println("Error scanning row  in checkForceMajorOrChangeRequest:", err)
 		return false, err
 	}
 	return count >= 2, nil

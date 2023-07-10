@@ -150,6 +150,36 @@ CREATE TABLE force_majeure (
     description TEXT NOT NULL
 );
 
+CREATE TABLE `change_requests` 
+( `id` int NOT NULL AUTO_INCREMENT,
+  `task_id` int DEFAULT NULL,
+  `residential_complex` varchar(255) NOT NULL,
+  `elevator_name` varchar(255) NOT NULL,
+  `employee_phone_number` varchar(15) NOT NULL,
+  `employee_identifier` int NOT NULL,
+  `incident_time` timestamp DEFAULT CURRENT_TIMESTAMP,
+  `description` text NOT NULL,
+  `description_of_what_done` text,
+  `is_done` bool DEFAULT false,
+PRIMARY KEY (`id`)) ENGINE=InnoDB AUTO_INCREMENT=9 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+
+CREATE TABLE overdue_task (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    task_id INT NOT NULL,
+    name_resident VARCHAR(255) NOT NULL,
+    name_lift VARCHAR(255) NOT NULL,
+    phone_number VARCHAR(15) NOT NULL,
+    name_of_task VARCHAR(255) NOT NULL,
+    date_start DATE NOT NULL,
+    date_end DATE NOT NULL,
+    is_done_by_worker BOOL NOT NULL, 
+    is_done_by_admin BOOL default false, 
+    is_done_by_hr_manager BOOL default false,
+    description_by_admin text,
+    description_by_hr_manager text
+);
+
 
 -- Insert sample data into the tables
 INSERT INTO admins (id, phone_number, identifier) VALUES

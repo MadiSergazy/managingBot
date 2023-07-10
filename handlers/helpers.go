@@ -47,13 +47,24 @@ func ShowTasks(bot *tgbotapi.BotAPI, message *tgbotapi.Message, dbConnection db.
 
 }
 
-func CheckUnfinishedForceMajeureReports(dbConnection db.Database, bot *tgbotapi.BotAPI) error {
-	// Query the database for unfinished force majeure reports
-	query := `
+func CheckUnfinished(dbConnection db.Database, bot *tgbotapi.BotAPI, nameTable string) error {
+	var query string
+
+	switch nameTable {
+	case "force_majeure":
+		query = `
 		SELECT id, task_id, residential_complex, elevator_name, employee_phone_number, incident_time, description
 		FROM force_majeure
 		WHERE is_done = false AND incident_time <= NOW() - INTERVAL 2 DAY;
 	`
+	case "change_requests":
+		query = `
+		SELECT id, task_id, residential_complex, elevator_name, employee_phone_number, incident_time, description
+		FROM change_requests
+		WHERE is_done = false AND incident_time <= NOW() - INTERVAL 2 DAY;
+	`
+	}
+	// Query the database for unfinished force majeure reports
 
 	rows, err := dbConnection.Query(query)
 	if err != nil {
@@ -100,12 +111,143 @@ func CheckUnfinishedForceMajeureReports(dbConnection db.Database, bot *tgbotapi.
 	return nil
 }
 
-// func SendForceMajeureNotification(id, taskID int, residentialComplex, elevatorName, employeePhoneNumber string, incidentTime time.Time) {
-// 	// Implement the logic to send the notification here
-// 	log.Printf("Sending force majeure notification for ID: %d\n", id)
-// 	log.Printf("Task ID: %d\n", taskID)
-// 	log.Printf("Residential Complex: %s\n", residentialComplex)
-// 	log.Printf("Elevator Name: %s\n", elevatorName)
-// 	log.Printf("Employee Phone Number: %s\n", employeePhoneNumber)
-// 	log.Printf("Incident Time: %s\n", incidentTime.String())
-// }
+func CheckOverdueTasks(dbConnection db.Database, bot *tgbotapi.BotAPI) error {
+	query := `SELECT
+	t.id,
+	p.name_resident,
+	l.name_lift,
+	w.phone_number,
+	t.nameOfTask,
+	t.dateStart,
+	t.dateEnd,
+	t.isDone
+  FROM projects p
+  JOIN lifts l ON p.lift_id = l.id
+  JOIN workers w ON p.worker_id = w.id
+  JOIN tasks t ON t.lift_id = l.id
+  WHERE t.dateEnd < (NOW() - INTERVAL 1 HOUR)  and t.isDone = false
+  ORDER BY p.id, t.id;`
+
+	rows, err := dbConnection.Query(query)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+
+	// Iterate over the rows and process the overdue tasks
+	for rows.Next() {
+		var (
+			taskID              int
+			nameResident        string
+			nameLift            string
+			employeePhoneNumber string
+			taskName            string
+			startDate           []uint8
+			endDate             []uint8
+			isDone              bool
+		)
+
+		err := rows.Scan(&taskID, &nameResident, &nameLift, &employeePhoneNumber, &taskName, &startDate, &endDate, &isDone)
+		if err != nil {
+			return err
+		}
+
+		// Convert the start and end date strings to time.Time objects
+		startTime, _ := time.Parse("2006-01-02", string(startDate))
+		endTime, _ := time.Parse("2006-01-02", string(endDate))
+
+		overdueId, err := InsertOverdueTask(dbConnection, taskID, nameResident, nameLift, employeePhoneNumber, taskName, startTime, endTime)
+		if err != nil {
+			return err
+		}
+
+		// Perform the notification for the overdue task
+		AdminChatID, err := getChatIDs(dbConnection, "admins") // Replace this with your logic to retrieve the admin chat ID
+		if err != nil {
+			log.Println("Error getting AdminChatID:", err)
+			return errors.New("Error getting AdminChatID")
+		}
+
+		overdueTaskNotification := fmt.Sprintf("Overdue Task:\n\nResident: %s\nLift: %s\nEmployee Phone: %s\nTask: %s\nStart Date: %s\nEnd Date: %s",
+			nameResident, nameLift, employeePhoneNumber, taskName, startTime.Format("02/01/2006"), endTime.Format("02/01/2006"))
+
+		sendForceMajeureNotifications(bot, AdminChatID, fmt.Sprintf(overdueTaskNotification+"\n/CompleteOverdueTaskByAdmin%d", overdueId))
+
+		// check if admin has solved the task within 24 hours
+		checkForAdminsCompleteExpiredTasks(dbConnection, bot, overdueId, overdueTaskNotification)
+	}
+
+	if err = rows.Err(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func InsertOverdueTask(dbConnection db.Database, taskID int, nameResident, nameLift, phoneNumber, nameOfTask string, dateStart, dateEnd time.Time) (int, error) {
+	query := `
+		INSERT INTO overdue_task (task_id, name_resident, name_lift, phone_number, name_of_task, date_start, date_end, is_done_by_worker)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?);
+	`
+
+	overdueID, err := dbConnection.ExecuteWithLastInsertID(query, taskID, nameResident, nameLift, phoneNumber, nameOfTask, dateStart.Format("2006-01-02"), dateEnd.Format("2006-01-02"), false)
+	if err != nil {
+		return 0, err
+	}
+
+	return overdueID, nil
+}
+
+func IsTaskDoneByAdmin(dbConnection db.Database, taskID int) (bool, error) {
+	query := "SELECT is_done_by_admin FROM overdue_task WHERE id = ?"
+	row := dbConnection.QueryRow(query, taskID)
+
+	var isDoneByAdmin bool
+	err := row.Scan(&isDoneByAdmin)
+	if err != nil {
+		return false, err
+	}
+
+	return isDoneByAdmin, nil
+}
+
+// Start a goroutine to check if admin has solved the task within 24 hours
+func checkForAdminsCompleteExpiredTasks(dbConnection db.Database, bot *tgbotapi.BotAPI, overdueId int, overdueTaskNotification string) {
+	timer := delay(24 * time.Hour) // Check after 24 hours
+
+	// Perform other tasks concurrently
+
+	// Wait for the timer to expire or receive a value from the channel
+	select {
+	case <-timer:
+		// Check if the task is still not marked as done by the admin
+		isDoneByAdmin, err := IsTaskDoneByAdmin(dbConnection, overdueId)
+		if err != nil {
+			log.Println("Error checking task status by admin:", err)
+			return
+		}
+
+		// If the task is still not done by the admin, notify the HR manager
+		if !isDoneByAdmin {
+			hrManagerChatID, err := getChatIDs(dbConnection, "hr_manager") // Replace this with your logic to retrieve the HR manager chat ID
+			if err != nil {
+				log.Println("Error getting HRManagerChatID:", err)
+				return
+			}
+			//todo implement command handler for /CompleteOverdueTaskByHrManager
+			sendForceMajeureNotifications(bot, hrManagerChatID, fmt.Sprintf(overdueTaskNotification+"\n/CompleteOverdueTaskByHrManager%d", overdueId))
+
+		}
+		break
+	}
+}
+
+func delay(duration time.Duration) <-chan time.Time {
+	ch := make(chan time.Time, 1)
+	go func() {
+		time.Sleep(duration)
+		ch <- time.Now()
+		close(ch)
+	}()
+	return ch
+}
