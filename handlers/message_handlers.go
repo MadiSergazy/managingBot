@@ -2,8 +2,10 @@ package handlers
 
 import (
 	"fmt"
+
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
 	log "github.com/sirupsen/logrus"
+
 	"madi_telegram_bot/db"
 )
 
@@ -40,15 +42,25 @@ func HandleUserMessage(bot *tgbotapi.BotAPI, message *tgbotapi.Message, updateBu
 		fmt.Println("userName: ", message.From.UserName)
 
 		// Check if the phone number exists in the admins table
-		isAdmin := isAdminUser(userPhone, dbConnection)
-
+		isAdmin := isWhoUser(userPhone, dbConnection, "admins")
+		isHrManager := isWhoUser(userPhone, dbConnection, "hr_manager")
 		// If the user is an admin, mark them as such
 		if isAdmin {
+			fmt.Println("It is admin and i am gonna insert identifier")
 
-			if err := dbConnection.InsertIdentifier(message.From.ID, "admins"); err != nil {
+			if err := dbConnection.InsertIdentifier(message.From.ID, "admins", userPhone, userName); err != nil {
 				log.Println("Error inserting Admin:", err)
 			}
 			log.Printf("User with phone number %s and userID: %d is an admin", userPhone, message.From.ID)
+
+		}
+		if isHrManager {
+			fmt.Println("It is HRMANAGER and i am gonna insert identifier")
+
+			if err := dbConnection.InsertIdentifier(message.From.ID, "hr_manager", userPhone, userName); err != nil {
+				log.Println("Error inserting hr_manager:", err)
+			}
+			log.Printf("User with phone number %s and userID: %d is an hr_manager", userPhone, message.From.ID)
 
 		} else {
 			// Insert the phone number into the workers table as a regular worker
@@ -58,7 +70,7 @@ func HandleUserMessage(bot *tgbotapi.BotAPI, message *tgbotapi.Message, updateBu
 				//return
 			}
 
-			if err := dbConnection.InsertIdentifier(message.From.ID, "workers"); err != nil {
+			if err := dbConnection.InsertIdentifier(message.From.ID, "workers", userPhone, userName); err != nil {
 				log.Println("Error inserting Admin:", err)
 			}
 			log.Printf("User with phone number %s and userID: %d is a worker", userPhone, message.From.ID)
@@ -71,25 +83,31 @@ func HandleUserMessage(bot *tgbotapi.BotAPI, message *tgbotapi.Message, updateBu
 		bot.Send(msg)
 	default:
 		userIdentifier := message.From.ID
-		isAdmin := isAdminByUserIdentifier(userIdentifier, dbConnection)
-
+		isAdmin := isByIdentifier(userIdentifier, dbConnection, "admins")
+		isHrManager := isByIdentifier(userIdentifier, dbConnection, "hr_manager")
 		// If the user is an admin, mark them as such
 		if isAdmin {
 			log.Info(" It is a admin")
 			HandleAdminCommand(bot, message, updateBuffer, dbConnection, updates) //todo: Implemet me
-		} else {
+		} else if isHrManager {
+			fmt.Println("IT IS a isHrManager")
 			//todo: Implemet worker
+			// HandleHrManagerCommand(bot, message, updateBuffer, dbConnection, updates) //todo: Implemet me
+		} else {
+			fmt.Println("IT IS a worker")
+			//todo: Implemet worker
+			HandleWorkerCommand(bot, message, updateBuffer, dbConnection, updates) //todo: Implemet me
 		}
 
 	}
 
 }
 
-func isAdminByUserIdentifier(userIdentifier int, dbConnection db.Database) bool {
-	query := "SELECT COUNT(*) FROM admins WHERE identifier = ?"
+func isByIdentifier(userIdentifier int, dbConnection db.Database, tableName string) bool {
+	query := "SELECT COUNT(*) FROM " + tableName + " WHERE identifier = ?"
 	row := dbConnection.QueryRow(query, userIdentifier)
 	if row.Err() != nil {
-		log.Println("Error executing query:", row.Err())
+		log.Println("Error executing query in isByIdentifier:", row.Err())
 		return false
 	}
 
@@ -103,16 +121,16 @@ func isAdminByUserIdentifier(userIdentifier int, dbConnection db.Database) bool 
 }
 
 // Check if the phone number exists in the admins table
-func isAdminUser(phoneNumber string, dbConnection db.Database) bool {
+func isWhoUser(phoneNumber string, dbConnection db.Database, role string) bool {
 	// Query the admins table to check if the phone number exists
 	// Implement your logic to check if the phone number exists in the admins table
 	// You can use the db.ExecuteQuery function from the db package
 
 	// Example query:
-	query := "SELECT COUNT(*) FROM admins WHERE phone_number = ?"
+	query := `SELECT COUNT(*) FROM ` + role + ` WHERE phone_number = ?`
 	row := dbConnection.QueryRow(query, phoneNumber)
 	if row.Err() != nil {
-		log.Println("Error executing query:", row.Err())
+		log.Println("Error executing query in isWhoUser:", row.Err())
 		return false
 	}
 
