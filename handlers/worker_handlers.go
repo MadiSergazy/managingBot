@@ -36,13 +36,15 @@ func HandleWorkerCommand(bot *tgbotapi.BotAPI, message *tgbotapi.Message, update
 		employeeUsername := message.From.UserName
 		handleAllTasksInfo(bot, message, dbConnection, updates, employeeUsername)
 	case "completetask":
-		handleCompleteTask(bot, message, dbConnection)
+		handleCompleteTask(bot, message, dbConnection, updates)
 	case "forcemajeure":
 		handleForceMajeureOrChangeRequest(bot, message, dbConnection, updates, "forcemajeure")
 	case "changerequest":
 		handleForceMajeureOrChangeRequest(bot, message, dbConnection, updates, "changerequest")
 	case "returnToMenu":
 		returnToMenu(bot, msg)
+	case "getfile": //todo move it to admin
+		handleGetFile(bot, &msg, dbConnection, updates)
 	default:
 		returnToMenu(bot, msg)
 
@@ -174,7 +176,7 @@ func GetTasksForToday(dbConnection db.Database, employeePhoneNumber string) ([]m
 	return tasks, nil
 }
 
-func handleCompleteTask(bot *tgbotapi.BotAPI, message *tgbotapi.Message, dbConnection db.Database) {
+func handleCompleteTask(bot *tgbotapi.BotAPI, message *tgbotapi.Message, dbConnection db.Database, updates tgbotapi.UpdatesChannel) {
 	fmt.Println("Inside handleCompleteTask")
 	// Extract the task ID from the command
 	command := strings.TrimPrefix(message.Text, "/completetask")
@@ -184,6 +186,27 @@ func handleCompleteTask(bot *tgbotapi.BotAPI, message *tgbotapi.Message, dbConne
 	if err != nil {
 		log.Println("Invalid task ID:", err)
 		response := "Invalid task ID. Please try again."
+		msg := tgbotapi.NewMessage(message.Chat.ID, response)
+		bot.Send(msg)
+		return
+	}
+
+	msg := tgbotapi.NewMessage(message.Chat.ID, "Send video or photo for task validation")
+	bot.Send(msg)
+
+	file_id, err := collectFile(bot, message.Chat.ID, updates)
+	if err != nil {
+		log.Println("Error collecting user input:", err)
+		msg := tgbotapi.NewMessage(message.Chat.ID, "Wrong data format")
+		bot.Send(msg)
+		return
+	}
+
+	// Save the file ID in the database
+	err = SaveFileID(dbConnection, taskID, file_id)
+	if err != nil {
+		log.Println("Error saving file ID:", err)
+		response := "Failed to save the photo or video. Please try again later."
 		msg := tgbotapi.NewMessage(message.Chat.ID, response)
 		bot.Send(msg)
 		return
@@ -200,7 +223,7 @@ func handleCompleteTask(bot *tgbotapi.BotAPI, message *tgbotapi.Message, dbConne
 	}
 
 	response := "Task marked as completed successfully. return to menu: /returnToMenu"
-	msg := tgbotapi.NewMessage(message.Chat.ID, response)
+	msg = tgbotapi.NewMessage(message.Chat.ID, response)
 	bot.Send(msg)
 }
 
@@ -211,6 +234,21 @@ func MarkTaskAsCompleted(dbConnection db.Database, taskID int) error {
 		return err
 	}
 
+	return nil
+}
+
+func SaveFileID(dbConnection db.Database, taskID int, fileID string) error {
+	query := `
+		UPDATE tasks
+		SET file_id = ?
+		WHERE id = ?;
+	`
+
+	// Execute the update query
+	err := dbConnection.Execute(query, fileID, taskID)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -461,3 +499,35 @@ func checkForceMajorOrChangeRequest(dbConnection db.Database, taskID int, issueN
 	}
 	return count >= 2, nil
 } //"your request  will pass to hr_manager's"
+
+func handleGetFile(bot *tgbotapi.BotAPI, message *tgbotapi.MessageConfig, dbConnection db.Database, updates tgbotapi.UpdatesChannel) {
+	fmt.Println("inside handleGetFile")
+	msg := tgbotapi.NewMessage(message.ChatID, "FileID: ")
+	bot.Send(msg)
+	fileID, err := collectUserInput(bot, message.ChatID, updates, "complexName", dbConnection)
+	if err != nil {
+		log.Println("Error retrieving file:", err)
+		response := "Failed to retrieve the file. Please try again later."
+		msg := tgbotapi.NewMessage(message.ChatID, response)
+		bot.Send(msg)
+		return
+	}
+
+	// Retrieve the file information using Telegram Bot API's getFile method
+	file, err := bot.GetFile(tgbotapi.FileConfig{
+		FileID: fileID,
+	})
+	if err != nil {
+		log.Println("Error retrieving file:", err)
+		response := "Failed to retrieve the file. Please try again later."
+		msg := tgbotapi.NewMessage(message.ChatID, response)
+		bot.Send(msg)
+		return
+	}
+
+	// Get the file URL and send it back to the user
+	fileURL := file.Link(bot.Token)
+	response := fmt.Sprintf("Here's the file you requested: %s", fileURL)
+	msg = tgbotapi.NewMessage(message.ChatID, response)
+	bot.Send(msg)
+}

@@ -411,6 +411,42 @@ func collectUserInput(bot *tgbotapi.BotAPI, chatID int64, updates tgbotapi.Updat
 	return userInput, nil
 }
 
+func collectFile(bot *tgbotapi.BotAPI, chatID int64, updates tgbotapi.UpdatesChannel) (string, error) {
+	// Create a channel to receive user input
+	userInputChan := make(chan string)
+
+	// Start a goroutine to collect user input
+	go func() {
+		for update := range updates {
+			// Check if the message contains a photo or video
+			if (update.Message.Photo != nil || update.Message.Video != nil) && update.Message.Chat.ID == chatID {
+				// The message contains a photo or video, handle it accordingly
+				fileID := ""
+				if update.Message.Photo != nil {
+					// Get the file ID of the photo
+					fileID = (*update.Message.Photo)[0].FileID
+					userInputChan <- fileID // Send the user input to the channel
+					return
+				} else if update.Message.Video != nil {
+					// Get the file ID of the video
+					fileID = update.Message.Video.FileID
+					userInputChan <- fileID // Send the user input to the channel
+					return
+				}
+			}
+
+		}
+		close(userInputChan) // Close the channel when the updates channel is closed
+	}()
+	// Receive user input from the channel
+	userInput, ok := <-userInputChan
+	if !ok {
+		return "", fmt.Errorf("user input channel closed unexpectedly")
+	}
+
+	return userInput, nil
+}
+
 func isValidDate(date string) bool {
 	_, err := time.Parse("02/01/2006", date)
 	return err == nil

@@ -136,6 +136,8 @@ CREATE TABLE IF NOT EXISTS tasks (
   dateEnd DATE,
   isDone BOOL DEFAULT FALSE,
   lift_id INT,
+  is_validate BOOL DEFAULT FALSE,  --todo add this
+  file_id VARCHAR(255),
   FOREIGN KEY (lift_id) REFERENCES lifts (id)
 );
 
