@@ -69,7 +69,7 @@ func StartForceMajeureNotifications(dbConnection db.Database, bot *tgbotapi.BotA
 	// Create a ticker with the desired duration
 
 	ticker := time.NewTicker(24 * time.Hour) // Check every 24 hours
-
+	// ticker := time.NewTicker(20 * time.Second)
 	// Start a goroutine to perform the notifications
 	go func() {
 		for {
@@ -88,7 +88,10 @@ func StartForceMajeureNotifications(dbConnection db.Database, bot *tgbotapi.BotA
 				if err != nil {
 					log.Println("Error checking CheckOverdueTasks:", err)
 				}
-
+				err = handlers.CheckPendingValidationTasks(dbConnection, bot)
+				if err != nil {
+					log.Println("Error checking pending validation tasks:", err)
+				}
 			}
 		}
 	}()

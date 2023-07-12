@@ -245,7 +245,9 @@ func ViewTasksForAdmin(dbConnection Database, employeeNumber string) ([]models.T
   t.nameOfTask,
   t.dateStart,
   t.dateEnd,
-  t.isDone
+  t.isDone,
+  t.id, 
+  t.is_validate
 FROM projects p
 JOIN lifts l ON p.lift_id = l.id
 JOIN workers w ON p.worker_id = w.id
@@ -273,6 +275,8 @@ ORDER BY p.id, t.id;
 			startDateStr        []uint8
 			endDateStr          []uint8
 			isDone              bool
+			taskID              int
+			is_validate         bool
 		)
 
 		err := rows.Scan(
@@ -283,6 +287,8 @@ ORDER BY p.id, t.id;
 			&startDateStr,
 			&endDateStr,
 			&isDone,
+			&taskID,
+			&is_validate,
 		)
 		if err != nil {
 			fmt.Println("Scan err: ", err)
@@ -302,6 +308,8 @@ ORDER BY p.id, t.id;
 			StartDate:           startDate.Format("02/01/2006"),
 			EndDate:             endDate.Format("02/01/2006"),
 			IsDone:              isDone,
+			TaskID:              taskID,
+			Is_validate:         is_validate,
 		}
 
 		taskInfoList = append(taskInfoList, taskInfo)

@@ -3,6 +3,7 @@ package handlers
 import (
 	"errors"
 	"fmt"
+	"strconv"
 	"time"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
@@ -38,7 +39,13 @@ func ShowTasks(bot *tgbotapi.BotAPI, message *tgbotapi.Message, dbConnection db.
 			if !task.IsDone {
 				doneSymbol = "❌" // Red cross
 			}
-			taskInfoMessage += "\nElevator: " + task.ElevatorName + "\nResidential Complex:" + task.ResidentialComplex + "\nEmployee Phone Number:" + task.EmployeePhoneNumber + "\nTask: " + task.TaskName + "\nStart Date: " + task.StartDate + "\nEnd Date: " + task.EndDate + "\nIs Done: " + doneSymbol + "\n\n"
+			validateSymbol := "✅" // Green checkmark
+			if !task.Is_validate {
+				validateSymbol = "❌" // Red cross
+			}
+
+			taskID := strconv.Itoa(task.TaskID)
+			taskInfoMessage += "\nElevator: " + task.ElevatorName + "\nResidential Complex:" + task.ResidentialComplex + "\nEmployee Phone Number:" + task.EmployeePhoneNumber + "\nTask: " + task.TaskName + "\nStart Date: " + task.StartDate + "\nEnd Date: " + task.EndDate + "\nIs Done: " + doneSymbol + "\nIs Validate: " + validateSymbol + "\n/getfile" + taskID + "\n/reject" + taskID + "\n/validate" + taskID + "\n\n"
 		}
 
 		msg := tgbotapi.NewMessage(message.Chat.ID, taskInfoMessage)
@@ -250,4 +257,61 @@ func delay(duration time.Duration) <-chan time.Time {
 		close(ch)
 	}()
 	return ch
+}
+
+func CheckPendingValidationTasks(dbConnection db.Database, bot *tgbotapi.BotAPI) error {
+	query := `
+		SELECT t.id, p.name_resident, l.name_lift, w.phone_number, t.nameOfTask, t.dateStart, t.dateEnd, t.isDone, t.date_requested_to_validate
+		FROM tasks t
+		JOIN projects p ON t.lift_id = p.lift_id
+		JOIN lifts l ON t.lift_id = l.id
+		JOIN workers w ON p.worker_id = w.id
+		WHERE t.isDone = true AND t.is_validate = false AND t.date_requested_to_validate <= NOW() - INTERVAL 48 HOUR;
+	`
+
+	rows, err := dbConnection.Query(query)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+
+	// Iterate over the rows and process the pending validation tasks
+	for rows.Next() {
+		var (
+			id            int
+			nameResident  string
+			nameLift      string
+			phone         string
+			nameOfTask    string
+			dateStart     []uint8
+			dateEnd       []uint8
+			isDone        bool
+			dateRequested []uint8
+		)
+
+		err := rows.Scan(&id, &nameResident, &nameLift, &phone, &nameOfTask, &dateStart, &dateEnd, &isDone, &dateRequested)
+		if err != nil {
+			return err
+		}
+
+		dateStartTime, _ := time.Parse("2006-01-02", string(dateStart))
+		dateEndTime, _ := time.Parse("2006-01-02", string(dateEnd))
+		dateRequestedTime, _ := time.Parse("2006-01-02", string(dateRequested))
+
+		hrManagerChatID, err := getChatIDs(dbConnection, "hr_manager")
+		if err != nil {
+			log.Println("Error getting HRManagerChatID:", err)
+			return errors.New("Error getting HRManagerChatID")
+		}
+
+		notification := fmt.Sprintf("Task pending validation:\nTask ID: %d\nResident: %s\nLift: %s\nEmployee Phone: %s\nTask: %s\nStart Date: %s\nEnd Date: %s\nDate Requested: %s",
+			id, nameResident, nameLift, phone, nameOfTask, dateStartTime.Format("02/01/2006"), dateEndTime.Format("02/01/2006"), dateRequestedTime.Format("02/01/2006"))
+		sendForceMajeureNotifications(bot, hrManagerChatID, notification)
+	}
+
+	if err = rows.Err(); err != nil {
+		return err
+	}
+
+	return nil
 }

@@ -38,6 +38,7 @@ type Task struct {
 
 // TaskInfo represents the information of a task
 type TaskInfo struct {
+	TaskID              int
 	ElevatorName        string
 	ResidentialComplex  string
 	EmployeePhoneNumber string
@@ -45,4 +46,5 @@ type TaskInfo struct {
 	StartDate           string
 	EndDate             string
 	IsDone              bool
+	Is_validate         bool
 }

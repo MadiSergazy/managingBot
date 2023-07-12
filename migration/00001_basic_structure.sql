@@ -137,7 +137,10 @@ CREATE TABLE IF NOT EXISTS tasks (
   isDone BOOL DEFAULT FALSE,
   lift_id INT,
   is_validate BOOL DEFAULT FALSE,  --todo add this
-  file_id VARCHAR(255),
+  file_id VARCHAR(255),            --todo add this 
+  date_requested_to_validate DATE, --todo ad dthis and check after 48hour with is_validate if is_val false and 48 hour send to hr_manager and also send to worker notification 
+  is_rejected BOOL DEFAULT FALSE,  -- todo add this if is reject is true send notification to worker with text description
+  reject_description TEXT, 
   FOREIGN KEY (lift_id) REFERENCES lifts (id)
 );
 
@@ -180,6 +183,15 @@ CREATE TABLE overdue_task (
     is_done_by_hr_manager BOOL default false,
     description_by_admin text,
     description_by_hr_manager text
+);
+
+
+CREATE TABLE IF NOT EXISTS recommendations (
+  id INT NOT NULL AUTO_INCREMENT,
+  date_created TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  phone_number VARCHAR(15) NOT NULL,
+  description TEXT,
+  PRIMARY KEY (id)
 );
 
 

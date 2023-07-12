@@ -41,10 +41,10 @@ func HandleWorkerCommand(bot *tgbotapi.BotAPI, message *tgbotapi.Message, update
 		handleForceMajeureOrChangeRequest(bot, message, dbConnection, updates, "forcemajeure")
 	case "changerequest":
 		handleForceMajeureOrChangeRequest(bot, message, dbConnection, updates, "changerequest")
+	case "recomendation":
+		handleRecommendation(bot, message, dbConnection, updates)
 	case "returnToMenu":
 		returnToMenu(bot, msg)
-	case "getfile": //todo move it to admin
-		handleGetFile(bot, &msg, dbConnection, updates)
 	default:
 		returnToMenu(bot, msg)
 
@@ -229,7 +229,7 @@ func handleCompleteTask(bot *tgbotapi.BotAPI, message *tgbotapi.Message, dbConne
 
 func MarkTaskAsCompleted(dbConnection db.Database, taskID int) error {
 	// Update the task's status in the database
-	err := dbConnection.Execute("UPDATE tasks SET isDone = true WHERE id = ?", taskID)
+	err := dbConnection.Execute("UPDATE tasks SET isDone = true, date_requested_to_validate = NOW() WHERE id = ?", taskID)
 	if err != nil {
 		return err
 	}
@@ -259,6 +259,9 @@ func returnToMenu(bot *tgbotapi.BotAPI, msg tgbotapi.MessageConfig) {
 		),
 		tgbotapi.NewKeyboardButtonRow(
 			tgbotapi.KeyboardButton{Text: "/seealltasks"},
+		),
+		tgbotapi.NewKeyboardButtonRow(
+			tgbotapi.KeyboardButton{Text: "/recomendation"},
 		),
 	)
 
@@ -500,15 +503,29 @@ func checkForceMajorOrChangeRequest(dbConnection db.Database, taskID int, issueN
 	return count >= 2, nil
 } //"your request  will pass to hr_manager's"
 
-func handleGetFile(bot *tgbotapi.BotAPI, message *tgbotapi.MessageConfig, dbConnection db.Database, updates tgbotapi.UpdatesChannel) {
-	fmt.Println("inside handleGetFile")
-	msg := tgbotapi.NewMessage(message.ChatID, "FileID: ")
-	bot.Send(msg)
-	fileID, err := collectUserInput(bot, message.ChatID, updates, "complexName", dbConnection)
+func handleGetFile(bot *tgbotapi.BotAPI, message *tgbotapi.Message, dbConnection db.Database, updates tgbotapi.UpdatesChannel) {
+	fmt.Println("inside handleGetFile: ", message.Text)
+	command := strings.TrimPrefix(message.Text, "/getfile")
+	taskID, err := strconv.Atoi(command)
+	fmt.Println("TaskID: ", taskID)
+
 	if err != nil {
-		log.Println("Error retrieving file:", err)
+		log.Println("Invalid task ID:", err)
+		response := "Invalid task ID. Please try again."
+		msg := tgbotapi.NewMessage(message.Chat.ID, response)
+		bot.Send(msg)
+		return
+	}
+
+	// Retrieve the file ID from the database
+	var fileID string
+	query := `SELECT file_id FROM tasks WHERE id = ?`
+	row := dbConnection.QueryRow(query, taskID)
+	err = row.Scan(&fileID)
+	if err != nil {
+		log.Println("Error retrieving file ID:", err)
 		response := "Failed to retrieve the file. Please try again later."
-		msg := tgbotapi.NewMessage(message.ChatID, response)
+		msg := tgbotapi.NewMessage(message.Chat.ID, response)
 		bot.Send(msg)
 		return
 	}
@@ -520,7 +537,7 @@ func handleGetFile(bot *tgbotapi.BotAPI, message *tgbotapi.MessageConfig, dbConn
 	if err != nil {
 		log.Println("Error retrieving file:", err)
 		response := "Failed to retrieve the file. Please try again later."
-		msg := tgbotapi.NewMessage(message.ChatID, response)
+		msg := tgbotapi.NewMessage(message.Chat.ID, response)
 		bot.Send(msg)
 		return
 	}
@@ -528,6 +545,50 @@ func handleGetFile(bot *tgbotapi.BotAPI, message *tgbotapi.MessageConfig, dbConn
 	// Get the file URL and send it back to the user
 	fileURL := file.Link(bot.Token)
 	response := fmt.Sprintf("Here's the file you requested: %s", fileURL)
-	msg = tgbotapi.NewMessage(message.ChatID, response)
+	msg := tgbotapi.NewMessage(message.Chat.ID, response)
 	bot.Send(msg)
+}
+
+func handleRecommendation(bot *tgbotapi.BotAPI, message *tgbotapi.Message, dbConnection db.Database, updates tgbotapi.UpdatesChannel) {
+	chatID := message.Chat.ID
+	phoneNumber := message.From.UserName // Assuming the phone number is retrieved from the user's username field
+
+	// Prompt the user to enter the recommendation description
+	msg := tgbotapi.NewMessage(chatID, "Please enter your recommendation:")
+	bot.Send(msg)
+
+	// Wait for the user's input
+	description, err := collectUserInput(bot, chatID, updates, "description", dbConnection)
+	if err != nil {
+		log.Println("Error collecting recommendation description:", err)
+		response := "Failed to collect recommendation description. Please try again later."
+		msg := tgbotapi.NewMessage(chatID, response)
+		bot.Send(msg)
+		return
+	}
+
+	// Save the recommendation to the database
+	err = SaveRecommendation(dbConnection, phoneNumber, description)
+	if err != nil {
+		log.Println("Error saving recommendation:", err)
+		response := "Failed to save the recommendation. Please try again later."
+		msg := tgbotapi.NewMessage(chatID, response)
+		bot.Send(msg)
+		return
+	}
+
+	response := "Recommendation saved successfully. Thank you for your feedback!"
+	msg = tgbotapi.NewMessage(chatID, response)
+	bot.Send(msg)
+}
+
+func SaveRecommendation(dbConnection db.Database, phoneNumber, description string) error {
+	query := "INSERT INTO recommendations (phone_number, description) VALUES (?, ?)"
+
+	err := dbConnection.Execute(query, phoneNumber, description)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

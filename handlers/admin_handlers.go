@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"errors"
 	"fmt"
 	"regexp"
 	"strconv"
@@ -31,6 +32,12 @@ func HandleAdminCommand(bot *tgbotapi.BotAPI, message *tgbotapi.Message, updateB
 		command = "completechangerequest"
 	} else if strings.HasPrefix(message.Text, "/CompleteOverdueTaskByAdmin") {
 		command = "completeoverduetaskbyadmin"
+	} else if strings.HasPrefix(message.Text, "/getfile") {
+		command = "getfile"
+	} else if strings.HasPrefix(message.Text, "/reject") {
+		command = "reject"
+	} else if strings.HasPrefix(message.Text, "/validate") {
+		command = "validate"
 	}
 
 	switch command {
@@ -51,6 +58,14 @@ func HandleAdminCommand(bot *tgbotapi.BotAPI, message *tgbotapi.Message, updateB
 		handlerCompleteForceMajorOrChangereques(bot, message, dbConnection, updates, "completechangerequest")
 	case "completeoverduetaskbyadmin":
 		handlerCompleteOverdueTaskByAdmin(bot, message, dbConnection, updates)
+	case "getfile": //todo move it to admin
+		handleGetFile(bot, message, dbConnection, updates)
+	case "reject":
+		handleRejectTask(bot, message, updates, dbConnection)
+	case "validate":
+		handleValidateTask(bot, message, dbConnection)
+	case "seerecomendation":
+		handleGetRecommendations(bot, message, dbConnection)
 	default:
 		replyMarkup := tgbotapi.NewReplyKeyboard(
 			tgbotapi.NewKeyboardButtonRow(
@@ -61,6 +76,9 @@ func HandleAdminCommand(bot *tgbotapi.BotAPI, message *tgbotapi.Message, updateB
 			),
 			tgbotapi.NewKeyboardButtonRow(
 				tgbotapi.KeyboardButton{Text: "/projectinfo"},
+			),
+			tgbotapi.NewKeyboardButtonRow(
+				tgbotapi.KeyboardButton{Text: "/seerecomendation"},
 			),
 		)
 
@@ -404,7 +422,7 @@ func collectUserInput(bot *tgbotapi.BotAPI, chatID int64, updates tgbotapi.Updat
 		if !isValidPhoneNumber(userInput) || !isPhoneNumberExists(dbConnection, userInput) {
 			return "", fmt.Errorf("invalid phone number format. Please enter a valid phone number")
 		}
-	case "complexName", "elevatorName", "description":
+	case "complexName", "elevatorName", "description", "rejectDescription":
 		// Additional validation or checks specific to complexName can be added here
 	}
 
@@ -465,20 +483,21 @@ func isValidPhoneNumber(phoneNumber string) bool {
 	if phoneNumber[:1] != "7" {
 		return false
 	}
-
+	fmt.Println("PHONE NUMBER FORMAT VALID")
 	return true
 }
 
 func isPhoneNumberExists(dbConnection db.Database, phoneNumber string) bool {
 
 	var count int
-	rows, err := dbConnection.Query("select count(*) from workers where phone_number = ?", phoneNumber)
-	if err != nil {
+	row := dbConnection.QueryRow("select count(*) from workers where phone_number = ?", strings.TrimSpace(phoneNumber))
+
+	fmt.Println("count PHONE NUMBER: ", count, " NUMBER: ", phoneNumber)
+	if err := row.Scan(&count); err != nil {
 
 		return false
+
 	}
-	// fmt.Println("count: ", count)
-	rows.Scan(&count)
 	return count > 0
 }
 
@@ -842,4 +861,166 @@ func MarkOverdueTaskDoneByAdmin(dbConnection db.Database, descriptionOfWhatDid s
 	}
 
 	return nil
+}
+
+func handleRejectTask(bot *tgbotapi.BotAPI, message *tgbotapi.Message, updates tgbotapi.UpdatesChannel, dbConnection db.Database) {
+	// Extract the task ID from the command
+	command := strings.TrimPrefix(message.Text, "/reject")
+	taskID, err := strconv.Atoi(command)
+	if err != nil {
+		log.Println("Invalid task ID:", err)
+		response := "Invalid task ID. Please try again."
+		msg := tgbotapi.NewMessage(message.Chat.ID, response)
+		bot.Send(msg)
+		return
+	}
+
+	// Prompt the admin to enter the reject description
+	prompt := "Please enter the reason for rejecting the task (maximum 200 characters):"
+	msg := tgbotapi.NewMessage(message.Chat.ID, prompt)
+	bot.Send(msg)
+	description, err := collectUserInput(bot, message.Chat.ID, updates, "rejectDescription", dbConnection)
+	if err != nil {
+		log.Println("Error collecting reject description:", err)
+		response := "Failed to collect the reject description. Please try again later."
+		msg := tgbotapi.NewMessage(message.Chat.ID, response)
+		bot.Send(msg)
+		return
+	}
+
+	// Update the task in the database
+	err = RejectTask(dbConnection, taskID, description)
+	if err != nil {
+		log.Println("Error rejecting task:", err)
+		response := "Failed to reject the task. Please try again later."
+		msg := tgbotapi.NewMessage(message.Chat.ID, response)
+		bot.Send(msg)
+		return
+	}
+
+	response := "Task rejected successfully."
+	msg = tgbotapi.NewMessage(message.Chat.ID, response)
+	bot.Send(msg)
+}
+
+func RejectTask(dbConnection db.Database, taskID int, rejectDescription string) error {
+	// Update the task's status and reject description in the database
+	query := "UPDATE tasks SET isDone = false, is_rejected = true, reject_description = ? WHERE id = ?"
+	err := dbConnection.Execute(query, rejectDescription, taskID)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func handleValidateTask(bot *tgbotapi.BotAPI, message *tgbotapi.Message, dbConnection db.Database) {
+	// Extract the task ID from the command
+	command := strings.TrimPrefix(message.Text, "/validate")
+	taskID, err := strconv.Atoi(command)
+	if err != nil {
+		log.Println("Invalid task ID:", err)
+		response := "Invalid task ID. Please try again."
+		msg := tgbotapi.NewMessage(message.Chat.ID, response)
+		bot.Send(msg)
+		return
+	}
+
+	// Update the task in the database
+	err = ValidateTask(dbConnection, taskID)
+	if err != nil {
+		log.Println("Error validating task:", err)
+		response := "Failed to validate the task. Please try again later."
+		msg := tgbotapi.NewMessage(message.Chat.ID, response)
+		bot.Send(msg)
+		return
+	}
+
+	response := "Task validated successfully."
+	msg := tgbotapi.NewMessage(message.Chat.ID, response)
+	bot.Send(msg)
+}
+
+func ValidateTask(dbConnection db.Database, taskID int) error {
+
+	// Check if the task is already marked as done or the file_id is empty
+	query := "SELECT is_done, file_id FROM tasks WHERE id = ?"
+	row := dbConnection.QueryRow(query, taskID)
+
+	var isDone bool
+	var fileID string
+	err := row.Scan(&isDone, &fileID)
+	if err != nil {
+		return err
+	}
+
+	if !isDone || fileID == "" {
+		return errors.New("task cannot be validated due to incomplete requirements")
+	}
+
+	// Update the task's validation status in the database
+	query = "UPDATE tasks SET is_validate = true WHERE id = ?"
+	err = dbConnection.Execute(query, taskID)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func handleGetRecommendations(bot *tgbotapi.BotAPI, message *tgbotapi.Message, dbConnection db.Database) {
+	// Query the recommendations from the database
+	query := "SELECT id, date_created, phone_number, description FROM recommendations"
+	rows, err := dbConnection.Query(query)
+	if err != nil {
+		log.Println("Error retrieving recommendations:", err)
+		response := "Failed to retrieve recommendations. Please try again later."
+		msg := tgbotapi.NewMessage(message.Chat.ID, response)
+		bot.Send(msg)
+		return
+	}
+	defer rows.Close()
+
+	// Iterate over the rows and collect the recommendations
+	var recommendations []string
+	for rows.Next() {
+		var (
+			id             int
+			dateCreatedRaw []uint8
+			phoneNumber    string
+			description    string
+		)
+		err := rows.Scan(&id, &dateCreatedRaw, &phoneNumber, &description)
+		if err != nil {
+			log.Println("Error scanning recommendation:", err)
+			continue
+		}
+
+		// Parse the date_created into a time.Time value
+		dateCreatedStr := string(dateCreatedRaw)
+		dateCreated, err := time.Parse("2006-01-02 15:04:05", dateCreatedStr)
+		if err != nil {
+			log.Println("Error parsing date_created:", err)
+			continue
+		}
+
+		// Format the recommendation information
+		recommendation := fmt.Sprintf("ID: %d\nDate: %s\nPhone Number: %s\nDescription: %s\n\n", id, dateCreated.Format("2006-01-02 15:04:05"), phoneNumber, description)
+		recommendations = append(recommendations, recommendation)
+	}
+
+	// Check if any recommendations were found
+	if len(recommendations) == 0 {
+		response := "No recommendations found."
+		msg := tgbotapi.NewMessage(message.Chat.ID, response)
+		bot.Send(msg)
+		return
+	}
+
+	// Join the recommendations into a single message
+	recommendationsMessage := strings.Join(recommendations, "")
+
+	// Send the recommendations message to the admin
+	msg := tgbotapi.NewMessage(message.Chat.ID, recommendationsMessage)
+	bot.Send(msg)
 }
