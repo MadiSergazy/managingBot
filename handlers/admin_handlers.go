@@ -342,7 +342,7 @@ func removeTaskButton(taskButtons []tgbotapi.InlineKeyboardButton, taskID int) [
 }
 
 func GetTasksFromLifts(dbConnection db.Database) ([]models.Task, error) {
-	query := "SELECT id, task_name FROM task_of_lifts LIMIT 3;" //todo change it
+	query := "SELECT id, task_name FROM task_of_lifts;" //todo change it
 
 	rows, err := dbConnection.Query(query)
 	if err != nil {
