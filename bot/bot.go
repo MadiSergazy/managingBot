@@ -30,11 +30,12 @@ func (b *Bot) StartBot(cfg config.Config, dbConnection db.Database) error {
 		return err
 	}
 
-	// time.Sleep(time.Millisecond * 500)
-	// updates.Clear()
+	time.Sleep(time.Millisecond * 500) //for cleaning updates that was send when bot was inactive
+	updates.Clear()
 
 	updateBuffer := make([]tgbotapi.Update, 0)
-	StartForceMajeureNotifications(dbConnection, b.bot)
+	//search change_requests, force_majeure, expired tasks and expired validations
+	StartSearching(dbConnection, b.bot)
 	// Set up event handlers for different types of messages
 	b.handleUpdates(updates, updateBuffer, dbConnection)
 	return nil
@@ -65,7 +66,7 @@ func (b *Bot) initUpdatesChannel() (tgbotapi.UpdatesChannel, error) {
 	return b.bot.GetUpdatesChan(u) //todo switch to webhook in future
 }
 
-func StartForceMajeureNotifications(dbConnection db.Database, bot *tgbotapi.BotAPI) {
+func StartSearching(dbConnection db.Database, bot *tgbotapi.BotAPI) {
 	// Create a ticker with the desired duration
 
 	ticker := time.NewTicker(24 * time.Hour) // Check every 24 hours

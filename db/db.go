@@ -221,18 +221,6 @@ func (db *Database) InsertTasks(taskIDToName map[int]string, employeeID int, tas
 	return nil
 }
 
-// Step 4: Insert a record into the lift_tasks table for each task
-// func (db *Database) InsertLiftTasks(liftID int, tasks map[int]models.TaskDates) error {
-// 	query := "INSERT INTO lift_tasks (lift_id, task_id) VALUES (?, ?)" //todo i did;t need this
-// 	for taskID := range tasks {
-// 		_, err := db.connection.Exec(query, liftID, taskID)
-// 		if err != nil {
-// 			return err
-// 		}
-// 	}
-// 	return nil
-// }
-
 // Function to view tasks for a specific employee number
 func ViewTasksForAdmin(dbConnection Database, employeeNumber string) ([]models.TaskInfo, error) {
 	// Query the database to fetch tasks for the specified employee number
