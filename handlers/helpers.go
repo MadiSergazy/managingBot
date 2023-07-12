@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"errors"
 	"fmt"
 	"strconv"
 	"time"
@@ -10,6 +9,7 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"madi_telegram_bot/db"
+	"madi_telegram_bot/models"
 )
 
 func ShowTasks(bot *tgbotapi.BotAPI, message *tgbotapi.Message, dbConnection db.Database, employeePhoneNumber string) {
@@ -101,7 +101,7 @@ func CheckUnfinished(dbConnection db.Database, bot *tgbotapi.BotAPI, nameTable s
 		if err != nil {
 			log.Println("Error getting HrChatID:", err)
 
-			return errors.New("Error getting HrChatID")
+			return models.ErrGettingHRID
 		}
 		forceMajeureNotification := fmt.Sprintf("Force Majeure Report time is expired:\n\nResident: %s\nLift: %s\nEmployee Phone: %s\nStart Date: %s\n\nDetails:\n%s",
 			residentialComplex, elevatorName, employeePhoneNumber, incidentTime1.Format("02/01/2006"), description)
@@ -172,7 +172,7 @@ func CheckOverdueTasks(dbConnection db.Database, bot *tgbotapi.BotAPI) error {
 		AdminChatID, err := getChatIDs(dbConnection, "admins") // Replace this with your logic to retrieve the admin chat ID
 		if err != nil {
 			log.Println("Error getting AdminChatID:", err)
-			return errors.New("Error getting AdminChatID")
+			return models.ErrGettingAdminID
 		}
 
 		overdueTaskNotification := fmt.Sprintf("Overdue Task:\n\nResident: %s\nLift: %s\nEmployee Phone: %s\nTask: %s\nStart Date: %s\nEnd Date: %s",
@@ -301,7 +301,7 @@ func CheckPendingValidationTasks(dbConnection db.Database, bot *tgbotapi.BotAPI)
 		hrManagerChatID, err := getChatIDs(dbConnection, "hr_manager")
 		if err != nil {
 			log.Println("Error getting HRManagerChatID:", err)
-			return errors.New("Error getting HRManagerChatID")
+			return models.ErrGettingHRID
 		}
 
 		notification := fmt.Sprintf("Task pending validation:\nTask ID: %d\nResident: %s\nLift: %s\nEmployee Phone: %s\nTask: %s\nStart Date: %s\nEnd Date: %s\nDate Requested: %s",

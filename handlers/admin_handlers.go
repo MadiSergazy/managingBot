@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"errors"
 	"fmt"
 	"regexp"
 	"strconv"
@@ -957,7 +956,7 @@ func ValidateTask(dbConnection db.Database, taskID int) error {
 	}
 
 	if !isDone || fileID == "" {
-		return errors.New("task cannot be validated due to incomplete requirements")
+		return models.ErrValidateTask
 	}
 
 	// Update the task's validation status in the database

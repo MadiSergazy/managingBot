@@ -1,5 +1,14 @@
 package models
 
+import "errors"
+
+var (
+	ErrNoOneExec      = errors.New("no one exec")
+	ErrValidateTask   = errors.New("task cannot be validated due to incomplete requirements")
+	ErrGettingAdminID = errors.New("Error getting AdminChatID")
+	ErrGettingHRID    = errors.New("Error getting HRManagerChatID")
+)
+
 type Worker struct {
 	ID          int
 	PhoneNumber string

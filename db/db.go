@@ -2,7 +2,6 @@ package db
 
 import (
 	"database/sql"
-	"errors"
 	"fmt"
 	"log"
 	"time"
@@ -53,7 +52,7 @@ func (db *Database) Execute(query string, args ...interface{}) error {
 		return fmt.Errorf("failed to get rowsAffected: %v", err)
 	}
 	if rowsAffected != 1 {
-		return errors.New("exec no one query")
+		return models.ErrNoOneExec
 	}
 	return nil
 }
@@ -68,7 +67,7 @@ func (db *Database) ExecuteWithLastInsertID(query string, args ...interface{}) (
 		return 0, fmt.Errorf("failed to get rowsAffected: %v", err)
 	}
 	if rowsAffected != 1 {
-		return 0, errors.New("exec no one query")
+		return 0, models.ErrNoOneExec
 	}
 	rowsAffected, err = res.LastInsertId()
 	if err != nil {
@@ -182,7 +181,7 @@ func (db *Database) InsertProjectInfo(nameResident string, workerID, liftID int)
 		return 0, err
 	}
 	if exec != 1 {
-		return 0, errors.New("Error inserting project: no one exec")
+		return 0, models.ErrNoOneExec
 	}
 
 	return int(projectID), nil
