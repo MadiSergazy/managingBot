@@ -67,26 +67,28 @@ func HandleAdminCommand(bot *tgbotapi.BotAPI, message *tgbotapi.Message, updateB
 	case "seerecomendation":
 		handleGetRecommendations(bot, message, dbConnection)
 	default:
-		replyMarkup := tgbotapi.NewReplyKeyboard(
-			tgbotapi.NewKeyboardButtonRow(
-				tgbotapi.KeyboardButton{Text: "/createproject"},
-			),
-			tgbotapi.NewKeyboardButtonRow(
-				tgbotapi.KeyboardButton{Text: "/projectlist"},
-			),
-			tgbotapi.NewKeyboardButtonRow(
-				tgbotapi.KeyboardButton{Text: "/projectinfo"},
-			),
-			tgbotapi.NewKeyboardButtonRow(
-				tgbotapi.KeyboardButton{Text: "/seerecomendation"},
-			),
-		)
-
-		msg.ReplyMarkup = replyMarkup
-		bot.Send(msg)
-
+		handleUnknownCommand(bot, msg)
 	}
 
+}
+func handleUnknownCommand(bot *tgbotapi.BotAPI, msg tgbotapi.MessageConfig) {
+	replyMarkup := tgbotapi.NewReplyKeyboard(
+		tgbotapi.NewKeyboardButtonRow(
+			tgbotapi.KeyboardButton{Text: "/createproject"},
+		),
+		tgbotapi.NewKeyboardButtonRow(
+			tgbotapi.KeyboardButton{Text: "/projectlist"},
+		),
+		tgbotapi.NewKeyboardButtonRow(
+			tgbotapi.KeyboardButton{Text: "/projectinfo"},
+		),
+		tgbotapi.NewKeyboardButtonRow(
+			tgbotapi.KeyboardButton{Text: "/seerecomendation"},
+		),
+	)
+
+	msg.ReplyMarkup = replyMarkup
+	bot.Send(msg)
 }
 
 // Function to send the message with the task buttons
