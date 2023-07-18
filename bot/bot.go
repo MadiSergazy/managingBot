@@ -67,8 +67,11 @@ func (b *Bot) initUpdatesChannel() (tgbotapi.UpdatesChannel, error) {
 }
 
 func StartSearching(dbConnection db.Database, bot *tgbotapi.BotAPI) {
+	if bot == nil {
+		log.Println("Database connection is null")
+		return
+	}
 	// Create a ticker with the desired duration
-
 	ticker := time.NewTicker(24 * time.Hour) // Check every 24 hours
 	// ticker := time.NewTicker(20 * time.Second)
 	// Start a goroutine to perform the notifications
@@ -96,4 +99,5 @@ func StartSearching(dbConnection db.Database, bot *tgbotapi.BotAPI) {
 			}
 		}
 	}()
+
 }

@@ -96,7 +96,7 @@ INSERT INTO task_of_lifts (id, task_name) VALUES
 
 -- Create the admins table
 CREATE TABLE IF NOT EXISTS admins (
-  id INT NOT NULL PRIMARY KEY,
+  id INT NOT NULL PRIMARY KEY AUTO_INCREMENT,
   phone_number VARCHAR(20) NOT NULL,
   identifier INT
 );
@@ -195,30 +195,29 @@ CREATE TABLE IF NOT EXISTS recommendations (
 );
 
 
--- Insert sample data into the tables
-INSERT INTO admins (id, phone_number, identifier) VALUES
-  (1, '1234567890', 100),
-  (2, '9876543210', 200);
+-- Insert sample adminsta into the tables
+INSERT INTO admins (phone_number) VALUES
+  ('77078566392');
 
-INSERT INTO workers (id, phone_number, name, identifier) VALUES
-  (1, '1111111111', 'John Doe', 100),
-  (2, '2222222222', 'Jane Smith', 200);
+-- INSERT INTO workers (id, phone_number, name, identifier) VALUES
+--   (1, '1111111111', 'John Doe', 100),
+--   (2, '2222222222', 'Jane Smith', 200);
 
-INSERT INTO lifts (id, name_lift, worker_id) VALUES
-  (1, 'Lift1', 1),
-  (2, 'Lift2', 1);
+-- INSERT INTO lifts (id, name_lift, worker_id) VALUES
+--   (1, 'Lift1', 1),
+--   (2, 'Lift2', 1);
 
-INSERT INTO projects (id, name_resident, worker_id, lift_id) VALUES
-  (1, 'Resident1', 1, 1),
-  (2, 'Resident2', 1, 2);
+-- INSERT INTO projects (id, name_resident, worker_id, lift_id) VALUES
+--   (1, 'Resident1', 1, 1),
+--   (2, 'Resident2', 1, 2);
 
-INSERT INTO tasks (id, nameOfTask, dateStart, dateEnd, isDone, lift_id) VALUES
-  (1, 'Task1', '2023-07-03', '2023-07-10', 1, 1),
-  (2, 'Task2', '2023-07-03', '2023-07-10', 0, 1),
-  (3, 'Task3', '2023-07-03', '2023-07-10', 1, 1),
-  (4, 'Task4', '2023-07-03', '2023-07-15', 0, 2),
-  (5, 'Task5', '2023-07-03', '2023-07-10', 1, 2),
-  (6, 'Task6', '2023-07-03', '2023-07-15', 0, 2);
+-- INSERT INTO tasks (id, nameOfTask, dateStart, dateEnd, isDone, lift_id) VALUES
+--   (1, 'Task1', '2023-07-03', '2023-07-10', 1, 1),
+--   (2, 'Task2', '2023-07-03', '2023-07-10', 0, 1),
+--   (3, 'Task3', '2023-07-03', '2023-07-10', 1, 1),
+--   (4, 'Task4', '2023-07-03', '2023-07-15', 0, 2),
+--   (5, 'Task5', '2023-07-03', '2023-07-10', 1, 2),
+--   (6, 'Task6', '2023-07-03', '2023-07-15', 0, 2);
 
 
 CREATE TABLE if not exists  `task_of_lifts` ( 
@@ -243,18 +242,18 @@ INSERT INTO task_of_lifts (id, task_name) VALUES
 (13, 'Монтаж электроаппаратуры, кабелей, электропроводки и цепей заземления'),
 (14, 'Пусконаладочные работы');
 
-SELECT
-  t.id,
-  p.name_resident,
-  l.name_lift,
-  w.phone_number,
-  t.nameOfTask,
-  t.dateStart,
-  t.dateEnd,
-  t.isDone
-FROM projects p
-JOIN lifts l ON p.lift_id = l.id
-JOIN workers w ON p.worker_id = w.id
-JOIN tasks t ON t.lift_id = l.id
-WHERE w.id = 1
-ORDER BY p.id, t.id;
+-- SELECT
+--   t.id,
+--   p.name_resident,
+--   l.name_lift,
+--   w.phone_number,
+--   t.nameOfTask,
+--   t.dateStart,
+--   t.dateEnd,
+--   t.isDone
+-- FROM projects p
+-- JOIN lifts l ON p.lift_id = l.id
+-- JOIN workers w ON p.worker_id = w.id
+-- JOIN tasks t ON t.lift_id = l.id
+-- WHERE w.id = 1
+-- ORDER BY p.id, t.id;
