@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"log"
 	"os"
 
@@ -21,7 +22,7 @@ func LoadConfig() Config {
 	if err != nil {
 		log.Fatal("Error loading .env file")
 	}
-
+	fmt.Println("after loading config")
 	return Config{
 		DBName:     os.Getenv("DB_NAME"),
 		DBHost:     os.Getenv("DB_HOST"),

@@ -1,65 +1,48 @@
-version: "3.9"
-
-networks:
-  internal:
-    driver: bridge
-
-
+version: '3.8'
 services:
-  postgres:
-    image: postgres:alpine
-    restart: always
-    volumes:
-      - ./db-init/:/docker-entrypoint-initdb.d/
-    environment:
-      - POSTGRES_DB=cert_db
-      - POSTGRES_USER=cert
-      - POSTGRES_PASSWORD=qwerty
-    networks:
-      - internal
-    ports:
-      - "5432:5432"
-    healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U cert -d cert_db" ]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
   db:
-    image: mysql
-    # NOTE: use of "mysql_native_password" is not recommended: https://dev.mysql.com/doc/refman/8.0/en/upgrading-from-previous-series.html#upgrade-caching-sha2-password
-    # (this is just an example, not intended to be a production configuration)
-    command: --default-authentication-plugin=mysql_native_password
+    image: mysql:8.0
+    cap_add:
+      - SYS_NICE
     restart: always
     environment:
-      MYSQL_ROOT_PASSWORD: example
-
-  adminer:
-    image: adminer
-    restart: always
+      - MYSQL_DATABASE=telegrambot
+      - MYSQL_ROOT_PASSWORD=mauFJcuf5dhRMQrjj
+      - MYSQL_MAX_CONNECTIONS=100
+      # Add the following lines to create a user named "quotes_user"
+      - MYSQL_USER=Lift_kz
+      - MYSQL_PASSWORD=Lift@2023
+      - MYSQL_ALLOW_EMPTY_PASSWORD=no
     ports:
-      - 8080:8080   
-         
-
-  cache:
-    image: redis:6.2-alpine
-    restart: always
-    networks:
-      - internal
-    ports:
-      - "6379:6379"
-    command: redis-server --save 20 1 --loglevel warning --requirepass eYVX7EwVmmxKPCDmwMtyKVge8oLd2t81
-
-  app:
-    build: .
-    restart: always
-    ports:
-      - "8000:8000"
-    environment:
-      - DB_HOST=postgres
-      - REDIS_HOST=cache
-    networks:
-      - internal
+      - '3306:3306'
+    volumes:
+      - mysql-volume:/var/lib/mysql:rw
+      - ./migration/dumb:/docker-entrypoint-initdb.d/
+    healthcheck:
+            test: ["CMD", "mysqladmin" ,"ping", "-h", "localhost"]
+            timeout: 20s
+            retries: 10
+  api:
+    container_name: telegrambot-api
+    build:
+      context: ./
+      target: production
+    image: telegrambot-api
+    # ensures that the db service is started before the api service. 
     depends_on:
-      - postgres
-      - cache
+            db:
+                condition: service_healthy
+    ports:
+      - 3000:3000
+    environment:
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_USER: Lift_kz
+      DB_PASSWORD: Lift@2023
+      DB_NAME: telegrambot
+      # This is useful when you want to mount the source code or project files from the host machine into the containe
+    volumes:
+      - ./:/src
+
+volumes:
+  mysql-volume:

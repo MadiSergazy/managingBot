@@ -1,6 +1,7 @@
 package telegram
 
 import (
+	"sync"
 	"time"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
@@ -13,11 +14,13 @@ import (
 
 // create constuctor for bot
 type Bot struct {
-	bot *tgbotapi.BotAPI
+	bot         *tgbotapi.BotAPI
+	updateMutex sync.Mutex
 }
 
 func NewBot(bot *tgbotapi.BotAPI) *Bot {
-	return &Bot{bot: bot}
+	return &Bot{bot: bot,
+		updateMutex: sync.Mutex{}}
 }
 
 // Handles the Telegram bot functionality. The bot.go file encapsulates the creation of the Telegram bot, sets up event handlers for different types of messages, and dispatches them to the appropriate handlers.
@@ -44,6 +47,9 @@ func (b *Bot) StartBot(cfg config.Config, dbConnection db.Database) error {
 
 func (b *Bot) handleUpdates(updates tgbotapi.UpdatesChannel, updateBuffer []tgbotapi.Update, dbConnection db.Database) {
 	for update := range updates {
+
+		// Lock the mutex to ensure only one instance processes updates at a time
+		b.updateMutex.Lock()
 		if update.Message != nil {
 			// Handle text messages
 			log.Info(update.Message)
@@ -57,6 +63,8 @@ func (b *Bot) handleUpdates(updates tgbotapi.UpdatesChannel, updateBuffer []tgbo
 			// Handle button clicks
 			//handlers.HandleButtonCallback(bot, update.CallbackQuery)
 		}
+		// Unlock the mutex after processing the update
+		b.updateMutex.Unlock()
 	}
 }
 

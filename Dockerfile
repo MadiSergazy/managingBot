@@ -1,7 +1,5 @@
-# Use the official Golang image as the base image
-FROM golang:1.20-alpine3.18
-# FROM gol
-# Use the official Gang:1.20-alpine3.18
+# Stage 1: Build the application
+FROM golang:1.20-alpine3.18 as builder
 
 # Set the working directory inside the container
 WORKDIR /app
@@ -16,18 +14,23 @@ RUN go mod download
 COPY . .
 
 # Install MySQL client
-RUN apk update && apk add mysql-client
+# RUN apk update && apk add mysql-client
 
 # Build the Go application
 RUN go build -o main ./cmd/main.go
 
-# Expose the port on which the application will run
-# EXPOSE 8080
+# Stage 2: Create the final production image
+FROM alpine:3.14 as production
+
+# Set the working directory inside the container
+WORKDIR /app
+
+# Copy the binary from the builder stage to the final image
+COPY --from=builder /app/main .
+COPY --from=builder /app/.env .
 
 # Set the entry point command for the container
 CMD ["./main"]
-# COPY --from=0 it means we want to copy from previous step of building
-# EXPOSE 80 - port for getting application in inside
 
 # ENV DB_NAME=telegrambot
 # ENV DB_HOST=127.0.0.1 

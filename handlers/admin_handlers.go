@@ -5,6 +5,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
@@ -42,7 +43,7 @@ func HandleAdminCommand(bot *tgbotapi.BotAPI, message *tgbotapi.Message, updateB
 	switch command {
 	case "createproject":
 		//msg.ReplyMarkup = tgbotapi.ReplyKeyboardRemove{RemoveKeyboard: true}
-		handleCreateProject(bot, message, updateBuffer, dbConnection, updates) //todo add some check fot time's and also check for the if employe phone number is exists
+		handleCreateProject(bot, message, dbConnection, updates) //todo add some check fot time's and also check for the if employe phone number is exists
 	case "projectlist":
 		//msg.ReplyMarkup = tgbotapi.ReplyKeyboardRemove{RemoveKeyboard: true}
 		handleProjectList(bot, message, dbConnection, updates) //todo to me
@@ -105,7 +106,7 @@ func sendTaskButtons(bot *tgbotapi.BotAPI, chatID int64, messageID int, buttons 
 	bot.Send(msg)
 }
 
-func handleCreateProject(bot *tgbotapi.BotAPI, message *tgbotapi.Message, updateBuffer []tgbotapi.Update, dbConnection db.Database, updates tgbotapi.UpdatesChannel) {
+func handleCreateProject(bot *tgbotapi.BotAPI, message *tgbotapi.Message, dbConnection db.Database, updates tgbotapi.UpdatesChannel) {
 	log.Info("Inide of the handleCreateProject")
 	// Create a channel to receive user messages
 	//userInputChan := make(chan string)
@@ -371,28 +372,31 @@ func GetTasksFromLifts(dbConnection db.Database) ([]models.Task, error) {
 }
 
 /*
-	// Insert the project into the database
-	//err = insertProject(projectName, dbConnection)
-	//if err != nil {
-	//	log.Println("Error creating project:", err)
-	//	response := "Failed to create the project. Please try again later."
-	//	msg := tgbotapi.NewMessage(message.Chat.ID, response)
-	//	bot.Send(msg)
-	//	return
-	//}
+// Insert the project into the database
+//err = insertProject(projectName, dbConnection)
+//if err != nil {
+//	log.Println("Error creating project:", err)
+//	response := "Failed to create the project. Please try again later."
+//	msg := tgbotapi.NewMessage(message.Chat.ID, response)
+//	bot.Send(msg)
+//	return
+//}
 
-	msg = tgbotapi.NewMessage(message.Chat.ID, "Project created successfully!")
-	bot.Send(msg)
+msg = tgbotapi.NewMessage(message.Chat.ID, "Project created successfully!")
+bot.Send(msg)
 */
+var updateMutex sync.Mutex
 
 func collectUserInput(bot *tgbotapi.BotAPI, chatID int64, updates tgbotapi.UpdatesChannel, field string, dbConnection db.Database) (string, error) {
 
 	// Create a channel to receive user input
 	userInputChan := make(chan string)
-
+	updateMutex.Lock()
+	defer updateMutex.Unlock()
 	// Start a goroutine to collect user input
 	go func() {
 		for update := range updates {
+
 			if update.Message != nil && update.Message.Chat.ID == chatID {
 				userInput := update.Message.Text
 				if userInput != "" {
@@ -433,7 +437,8 @@ func collectUserInput(bot *tgbotapi.BotAPI, chatID int64, updates tgbotapi.Updat
 func collectFile(bot *tgbotapi.BotAPI, chatID int64, updates tgbotapi.UpdatesChannel) (string, error) {
 	// Create a channel to receive user input
 	userInputChan := make(chan string)
-
+	updateMutex.Lock()
+	defer updateMutex.Unlock()
 	// Start a goroutine to collect user input
 	go func() {
 		for update := range updates {
