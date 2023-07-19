@@ -36,16 +36,15 @@ func (b *Bot) StartBot(cfg config.Config, dbConnection db.Database) error {
 	time.Sleep(time.Millisecond * 500) //for cleaning updates that was send when bot was inactive
 	updates.Clear()
 
-	updateBuffer := make([]tgbotapi.Update, 0)
 	//search change_requests, force_majeure, expired tasks and expired validations
 	StartSearching(dbConnection, b.bot)
 	// Set up event handlers for different types of messages
-	b.handleUpdates(updates, updateBuffer, dbConnection)
+	b.handleUpdates(updates, dbConnection)
 	return nil
 
 }
 
-func (b *Bot) handleUpdates(updates tgbotapi.UpdatesChannel, updateBuffer []tgbotapi.Update, dbConnection db.Database) {
+func (b *Bot) handleUpdates(updates tgbotapi.UpdatesChannel, dbConnection db.Database) {
 	for update := range updates {
 
 		// Lock the mutex to ensure only one instance processes updates at a time
@@ -55,10 +54,7 @@ func (b *Bot) handleUpdates(updates tgbotapi.UpdatesChannel, updateBuffer []tgbo
 			log.Info(update.Message)
 			log.Info(update.Message.From.ID)
 
-			// Add the update to the buffer
-			updateBuffer = append(updateBuffer, update)
-
-			handlers.HandleUserMessage(b.bot, update.Message, updateBuffer, dbConnection, updates)
+			handlers.HandleUserMessage(b.bot, update.Message, dbConnection, updates)
 		} else if update.CallbackQuery != nil {
 			// Handle button clicks
 			//handlers.HandleButtonCallback(bot, update.CallbackQuery)

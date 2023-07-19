@@ -16,7 +16,7 @@ import (
 )
 
 // HandleAdminCommand handles admin-specific commands
-func HandleAdminCommand(bot *tgbotapi.BotAPI, message *tgbotapi.Message, updateBuffer []tgbotapi.Update, dbConnection db.Database, updates tgbotapi.UpdatesChannel) {
+func HandleAdminCommand(bot *tgbotapi.BotAPI, message *tgbotapi.Message, dbConnection db.Database, updates tgbotapi.UpdatesChannel) {
 	response := "Unknown command. Please use valid admin commands."
 	msg := tgbotapi.NewMessage(message.Chat.ID, response)
 	message.CommandArguments()

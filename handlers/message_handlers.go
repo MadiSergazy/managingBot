@@ -9,7 +9,7 @@ import (
 	"madi_telegram_bot/db"
 )
 
-func HandleUserMessage(bot *tgbotapi.BotAPI, message *tgbotapi.Message, updateBuffer []tgbotapi.Update, dbConnection db.Database, updates tgbotapi.UpdatesChannel) {
+func HandleUserMessage(bot *tgbotapi.BotAPI, message *tgbotapi.Message, dbConnection db.Database, updates tgbotapi.UpdatesChannel) {
 	switch {
 
 	case message.Text == "/start":
@@ -88,7 +88,7 @@ func HandleUserMessage(bot *tgbotapi.BotAPI, message *tgbotapi.Message, updateBu
 		// If the user is an admin, mark them as such
 		if isAdmin {
 			log.Info(" It is a admin")
-			HandleAdminCommand(bot, message, updateBuffer, dbConnection, updates) //todo: Implemet me
+			HandleAdminCommand(bot, message, dbConnection, updates) //todo: Implemet me
 		} else if isHrManager {
 			fmt.Println("IT IS a isHrManager")
 			//todo: Implemet worker
@@ -96,7 +96,7 @@ func HandleUserMessage(bot *tgbotapi.BotAPI, message *tgbotapi.Message, updateBu
 		} else {
 			fmt.Println("IT IS a worker")
 			//todo: Implemet worker
-			HandleWorkerCommand(bot, message, updateBuffer, dbConnection, updates) //todo: Implemet me
+			HandleWorkerCommand(bot, message, dbConnection, updates) //todo: Implemet me
 		}
 
 	}
