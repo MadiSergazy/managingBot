@@ -33,8 +33,8 @@ func (b *Bot) StartBot(cfg config.Config, dbConnection db.Database) error {
 		return err
 	}
 
-	time.Sleep(time.Millisecond * 500) //for cleaning updates that was send when bot was inactive
-	updates.Clear()
+	// time.Sleep(time.Millisecond * 500) //for cleaning updates that was send when bot was inactive
+	// updates.Clear()
 
 	//search change_requests, force_majeure, expired tasks and expired validations
 	StartSearching(dbConnection, b.bot)

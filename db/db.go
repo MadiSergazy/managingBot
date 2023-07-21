@@ -19,7 +19,8 @@ type Database struct {
 
 func NewDatabase(cfg config.Config) (*Database, error) {
 	dbURL := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?%s",
-		cfg.DBUser, cfg.DBPassword, cfg.DBHost, cfg.DBPort, cfg.DBName, "charset=utf8mb4&collation=utf8mb4_0900_ai_ci")
+		cfg.DBUser, cfg.DBPassword, cfg.DBHost, cfg.DBPort, cfg.DBName, "charset=utf8mb4&collation=utf8mb4_unicode_ci")
+	// cfg.DBUser, cfg.DBPassword, cfg.DBHost, cfg.DBPort, cfg.DBName, "charset=utf8mb4&collation=utf8mb4_0900_ai_ci")
 	// cfg.DBUser, cfg.DBPassword, cfg.DBHost, cfg.DBPort, cfg.DBName, "charset=utf8mb4&collation=utf8mb4_unicode_520_ci")
 
 	fmt.Println("dbURL: ", dbURL)
