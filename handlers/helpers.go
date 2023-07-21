@@ -56,19 +56,6 @@ func ShowTasks(bot *tgbotapi.BotAPI, message *tgbotapi.Message, dbConnection db.
 
 		msg.ParseMode = "HTML"
 		bot.Send(msg)
-
-		msg = tgbotapi.NewMessage(message.Chat.ID, "ЧТО ТО на русском1")
-
-		msg.ParseMode = "HTML"
-		bot.Send(msg)
-
-		msg = tgbotapi.NewMessage(message.Chat.ID, "ЧТО ТО на русском2")
-
-		msg.ParseMode = "MARKDOWN"
-		bot.Send(msg)
-
-		msg = tgbotapi.NewMessage(message.Chat.ID, "ЧТО ТО на русском3")
-		bot.Send(msg)
 	}
 
 }
