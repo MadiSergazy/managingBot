@@ -15,7 +15,12 @@ services:
       - MYSQL_ALLOW_EMPTY_PASSWORD=no
       - MYSQL_INITDB_CHARSET=utf8mb4
       - MYSQL_CHARACTER_SET_SERVER=utf8mb4
-      - MYSQL_COLLATION_SERVER=utf8mb4_unicode_ci
+      - MYSQL_COLLATION_SERVER=utf8mb4_0900_ai_ci 
+
+      # - MYSQL_CHARSET=utf8mb4
+      # - MYSQL_COLLATION=utf8mb4_0900_ai_ci
+
+      #utf8mb4_unicode_520_ci 
     ports:
       - '3306:3306'
     volumes:
@@ -43,6 +48,10 @@ services:
       DB_USER: Lift_kz
       DB_PASSWORD: Lift@2023
       DB_NAME: telegrambot
+      
+      LANG: ru_RU.utf8
+      LANGUAGE: ru_RU.utf8
+      LC_ALL: ru_RU.utf8
       # This is useful when you want to mount the source code or project files from the host machine into the containe
     volumes:
       - ./:/src

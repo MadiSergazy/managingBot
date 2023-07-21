@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"fmt"
+	"html"
 	"strconv"
 	"time"
 
@@ -22,6 +23,7 @@ func ShowTasks(bot *tgbotapi.BotAPI, message *tgbotapi.Message, dbConnection db.
 		bot.Send(msg)
 		return
 	}
+	fmt.Println("TASK INFORMATION: ", taskInfoList)
 
 	// Display the task information to the user
 	if len(taskInfoList) == 0 {
@@ -46,9 +48,26 @@ func ShowTasks(bot *tgbotapi.BotAPI, message *tgbotapi.Message, dbConnection db.
 
 			taskID := strconv.Itoa(task.TaskID)
 			taskInfoMessage += "\nElevator: " + task.ElevatorName + "\nResidential Complex:" + task.ResidentialComplex + "\nEmployee Phone Number:" + task.EmployeePhoneNumber + "\nTask: " + task.TaskName + "\nStart Date: " + task.StartDate + "\nEnd Date: " + task.EndDate + "\nIs Done: " + doneSymbol + "\nIs Validate: " + validateSymbol + "\n/getfile" + taskID + "\n/reject" + taskID + "\n/validate" + taskID + "\n\n"
+			fmt.Println("task.TaskNam: ", task.TaskName)
+			fmt.Println("html.EscapeString ", html.EscapeString(task.TaskName))
 		}
 
 		msg := tgbotapi.NewMessage(message.Chat.ID, taskInfoMessage)
+
+		msg.ParseMode = "HTML"
+		bot.Send(msg)
+
+		msg = tgbotapi.NewMessage(message.Chat.ID, "ЧТО ТО на русском1")
+
+		msg.ParseMode = "HTML"
+		bot.Send(msg)
+
+		msg = tgbotapi.NewMessage(message.Chat.ID, "ЧТО ТО на русском2")
+
+		msg.ParseMode = "MARKDOWN"
+		bot.Send(msg)
+
+		msg = tgbotapi.NewMessage(message.Chat.ID, "ЧТО ТО на русском3")
 		bot.Send(msg)
 	}
 

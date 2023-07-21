@@ -18,12 +18,21 @@ type Database struct {
 }
 
 func NewDatabase(cfg config.Config) (*Database, error) {
-	dbURL := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s",
-		cfg.DBUser, cfg.DBPassword, cfg.DBHost, cfg.DBPort, cfg.DBName)
+	dbURL := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?%s",
+		cfg.DBUser, cfg.DBPassword, cfg.DBHost, cfg.DBPort, cfg.DBName, "charset=utf8mb4&collation=utf8mb4_0900_ai_ci")
+	// cfg.DBUser, cfg.DBPassword, cfg.DBHost, cfg.DBPort, cfg.DBName, "charset=utf8mb4&collation=utf8mb4_unicode_520_ci")
 
+	fmt.Println("dbURL: ", dbURL)
 	db, err := sql.Open("mysql", dbURL)
 	if err != nil {
 		log.Fatalf("Failed to connect to the database: %v", err)
+		return nil, err
+	}
+
+	// Set the connection character set to utf8mb4
+	_, err = db.Exec("SET NAMES 'utf8mb4'")
+	if err != nil {
+		db.Close()
 		return nil, err
 	}
 

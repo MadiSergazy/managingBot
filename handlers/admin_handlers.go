@@ -666,11 +666,13 @@ func handleProjectByID(bot *tgbotapi.BotAPI, message *tgbotapi.Message, dbConnec
 		}
 
 		msg := tgbotapi.NewMessage(message.Chat.ID, taskInfoMessage)
+		msg.ParseMode = "HTML"
 		bot.Send(msg)
 	}
 
 	response := ""
 	msg := tgbotapi.NewMessage(message.Chat.ID, response)
+	msg.ParseMode = "HTML"
 	bot.Send(msg)
 }
 

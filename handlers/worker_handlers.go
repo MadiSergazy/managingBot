@@ -125,7 +125,7 @@ func handleTodaysTasks(bot *tgbotapi.BotAPI, message *tgbotapi.Message, dbConnec
 	}
 
 	msg := tgbotapi.NewMessage(message.Chat.ID, taskInfoMessage)
-	msg.ParseMode = "Markdown"
+	msg.ParseMode = "HTML"
 	bot.Send(msg)
 }
 
