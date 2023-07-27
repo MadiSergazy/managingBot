@@ -344,7 +344,7 @@ func removeTaskButton(taskButtons []tgbotapi.InlineKeyboardButton, taskID int) [
 }
 
 func GetTasksFromLifts(dbConnection db.Database) ([]models.Task, error) {
-	query := "SELECT id, task_name FROM task_of_lifts;" //todo change it
+	query := `SELECT id, task_name FROM task_of_lifts;` //todo change it
 
 	rows, err := dbConnection.Query(query)
 	if err != nil {
@@ -510,7 +510,7 @@ func isPhoneNumberExists(dbConnection db.Database, phoneNumber string) bool {
 func createTaskInlineKeyboard(dbConnection db.Database) (tgbotapi.InlineKeyboardMarkup, error) {
 	var inlineKeyboardRows []tgbotapi.InlineKeyboardButton
 
-	rows, err := dbConnection.Query("select * from task_of_lifts;")
+	rows, err := dbConnection.Query(`select * from task_of_lifts;`)
 	if err != nil {
 		return tgbotapi.InlineKeyboardMarkup{}, err
 	}
