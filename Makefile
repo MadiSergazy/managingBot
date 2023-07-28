@@ -1,10 +1,21 @@
+## help: print this help message
+help:
+	@echo 'Usage:'
+	@sed -n 's/^##//p' ${MAKEFILE_LIST} | column -t -s ':' | sed -e 's/^/ /'
 # .PHONY:
-
+confirm:
+	@echo -n 'Are you sure? [y/N] ' && read ans && [ $${ans:-N} = y ]
+## stopped docker-compose file
 stop:
 	docker-compose down
-
+##run docker-compose file
 run: 
-	docker-compose up
+	docker-compose up --build
+##deleted the volume of application
+volume/del: confirm
+	docker-compose down -v
+
+
 
 # build-image:
 # 	docker build -t telegram-bot-lift-kz:0.1 .
