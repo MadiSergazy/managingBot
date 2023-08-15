@@ -424,7 +424,7 @@ func collectUserInput(bot *tgbotapi.BotAPI, chatID int64, updates tgbotapi.Updat
 		}
 	case "employeePhoneNumber":
 
-		if !isValidPhoneNumber(userInput) || !isPhoneNumberExists(dbConnection, userInput) {
+		if !isValidPhoneNumber(userInput) { //|| !isPhoneNumberExists(dbConnection, userInput) {
 			return "", fmt.Errorf("invalid phone number format. Please enter a valid phone number")
 		}
 	case "complexName", "elevatorName", "description", "rejectDescription":
