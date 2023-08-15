@@ -196,9 +196,11 @@ CREATE TABLE IF NOT EXISTS recommendations (
 
 
 -- Insert sample adminsta into the tables
-INSERT INTO admins (phone_number) VALUES
-  ('77078566392');
+-- INSERT INTO admins (phone_number) VALUES
+--   ('77078566392');
 
+INSERT INTO admins (phone_number) VALUES
+  ('7019879117');
 -- INSERT INTO workers (id, phone_number, name, identifier) VALUES
 --   (1, '1111111111', 'John Doe', 100),
 --   (2, '2222222222', 'Jane Smith', 200);
