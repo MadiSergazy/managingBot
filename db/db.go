@@ -1,9 +1,11 @@
 package db
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"log"
+	"strconv"
 	"time"
 
 	_ "github.com/go-sql-driver/mysql"
@@ -30,6 +32,29 @@ func NewDatabase(cfg config.Config) (*Database, error) {
 		return nil, err
 	}
 
+	maxOpenConns, err := strconv.Atoi(cfg.MaxOpenConns)
+	if err != nil {
+		log.Fatalf("wrong type for MaxOpenConns in config: %v", err)
+		return nil, err
+	}
+
+	maxIdleConns, err := strconv.Atoi(cfg.MaxOpenConns)
+	if err != nil {
+		log.Fatalf("wrong type for maxIdleConns in config: %v", err)
+		return nil, err
+	}
+
+	duration, err := time.ParseDuration(cfg.ConnMaxIdleTime)
+	fmt.Println(duration)
+	if err != nil {
+		log.Fatalf("wrong type for CONN_MAX_IDLE_TIME in config: %v", err)
+		return nil, err
+	}
+
+	db.SetMaxOpenConns(maxOpenConns)
+	db.SetMaxIdleConns(maxIdleConns)
+	db.SetConnMaxLifetime(duration)
+
 	// Set the connection character set to utf8mb4
 	_, err = db.Exec("SET NAMES 'utf8mb4'")
 	if err != nil {
@@ -37,7 +62,9 @@ func NewDatabase(cfg config.Config) (*Database, error) {
 		return nil, err
 	}
 
-	err = db.Ping()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	err = db.PingContext(ctx)
 	if err != nil {
 		log.Fatalf("Failed to ping the database: %v", err)
 		return nil, err
@@ -204,6 +231,7 @@ func (db *Database) InsertLiftDetails(nameResident, nameLift string) (int, error
 	if err != nil {
 		return 0, err
 	}
+
 	lift_details_id, err := res.LastInsertId()
 	if err != nil {
 		return 0, err
