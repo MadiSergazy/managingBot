@@ -44,8 +44,15 @@ func NewDatabase(cfg config.Config) (*Database, error) {
 		return nil, err
 	}
 
-	duration, err := time.ParseDuration(cfg.ConnMaxIdleTime)
-	fmt.Println(duration)
+	connMaxIdleTime, err := time.ParseDuration(cfg.ConnMaxIdleTime)
+	fmt.Println(connMaxIdleTime)
+	if err != nil {
+		log.Fatalf("wrong type for CONN_MAX_IDLE_TIME in config: %v", err)
+		return nil, err
+	}
+
+	connMaxLifetime, err := time.ParseDuration(cfg.ConnMaxLifeTime)
+	fmt.Println(connMaxLifetime)
 	if err != nil {
 		log.Fatalf("wrong type for CONN_MAX_IDLE_TIME in config: %v", err)
 		return nil, err
@@ -53,8 +60,8 @@ func NewDatabase(cfg config.Config) (*Database, error) {
 
 	db.SetMaxOpenConns(maxOpenConns)
 	db.SetMaxIdleConns(maxIdleConns)
-	db.SetConnMaxLifetime(duration)
-
+	db.SetConnMaxLifetime(connMaxLifetime)
+	db.SetConnMaxIdleTime(connMaxIdleTime)
 	// Set the connection character set to utf8mb4
 	_, err = db.Exec("SET NAMES 'utf8mb4'")
 	if err != nil {

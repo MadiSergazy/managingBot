@@ -18,6 +18,7 @@ type Config struct {
 	MaxOpenConns    string
 	MaxIdleConns    string
 	ConnMaxIdleTime string
+	ConnMaxLifeTime string
 }
 
 func LoadConfig() Config {
@@ -36,5 +37,6 @@ func LoadConfig() Config {
 		MaxOpenConns:    os.Getenv("MAX_OPEN_CONNS"),
 		MaxIdleConns:    os.Getenv("MAX_IDLE_CONNS"),
 		ConnMaxIdleTime: os.Getenv("CONN_MAX_IDLE_TIME"),
+		ConnMaxLifeTime: os.Getenv("CONN_MAX_LIFE_TIME"),
 	}
 }
